@@ -1,0 +1,33 @@
+---
+title: "Defining and quantifying judge 'harshness'"
+subtitle: "2021 RLadies Philly/JAT Datathon"
+author: "Team 2: Gritty McGritty, etc."
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem definition and dataset
+
+Each judge has a different distribution of cases; how can we compare judges' sentencing behavior to one another given this variation?
+
+## Working definitions
+
+- "Harshness": we defined harshness to mean... 
+
+## Data issues
+
+- Missing data: we found XXXX number of missing values, so results should be interpreted with caution.
+
+## Results 
+
+```{r, echo = FALSE}
+plot(iris$Sepal.Length, iris$Sepal.Width)
+```
+
+## Conclusions 
+
+## Limitations and Next Steps
