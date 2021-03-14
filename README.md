@@ -51,7 +51,12 @@ The [Judge Accountability Table (JAT)](https://judgeaccountabilitytable.org/) is
 
 # Data
 
-[Description of the data](NEED TO ADD)
+The data includes public court docket information between 2010-2020. Because of the large volume of data, the datasets are available as large total files, or as files per year. Please go to the [data page](https://github.com/rladiesPHL/2021_datathon/blob/main/data/data_description.md) to get more context, data description, and the data download links. The following 3 datasets serve as the basis for this datathon:
+
+- **defendant_docket_details.csv**: contains details about a [docket](#docket) (i.e., a "case"), including basic demographics on the defendant as well as the history of the case at a broad level (eg when the defendant was arrested, the court and municipality where the case was processed, whether the case is still active or has been adjudicated, and what type of representation the defendant had). 
+- **offenses_dispositions.csv**: provides information on the offenses on any given docket, and the dispositions associated with each sentence. One docket can include one or more offenses, of which one or more can receive a disposition (ie, a decision). The disposition can also include a sentence type, a sentence duration, and a minimum and maximum sentence duration
+- **bail.csv**: includes information on the [bail](#bail) history of a docket. Bail is set per docket (not per individual offense). There are multiple actions that occur in relation to bail, e.g. bail is first set, bail is increased/decreased, bail type is changed, or revoked, etc. 
+
 
 # Code of Conduct
 
@@ -73,17 +78,38 @@ R-Ladies is dedicated to providing a harassment-free experience for everyone. We
 
 **I am new to R. How do I get started?**
 
+- [Install R and R Studio](https://rstudio-education.github.io/hopr/starting.html)
+- Watch the ["Intro to R" webinar by Tess Cherlin](https://youtu.be/80VIvZZegY8?t=1297) on R-Ladies Philly YouTube Channel
+- [Download the data](https://github.com/rladiesPHL/2021_datathon/blob/main/data/data_links.md)
+- Refer to [Rstudio Cheatsheets](https://rstudio.com/resources/cheatsheets/) for quick solutions to coding questions
+- Ask for help on the [RLadies-Philly Slack](https://bit.ly/join-rladies-slack-2020) #help channel
+
 **I've never used Git and GitHub before. What is it and how do I use it?**
 
-- If anyone needs help setting up a GitHub account, there will be an organizer to help with this at the event. *If you weren't able to attend the Kickoff Meetup and want to get involved, check out [How to get involved](documentation/get_involved.md).*
+- Use this guide to [get started with Git and GitHub](https://happygitwithr.com/index.html)
+- Use this [step-by-step guide](https://docs.google.com/document/d/1vF7uWo2ITXcifyNoLd8ZTJdNPx0Pd4eXXrdkKVfbAkY/edit) to start participating in the collaborative work for this datathon 
+- Ask for help on the [RLadies-Philly Slack](https://bit.ly/join-rladies-slack-2020) #help channel
 
 **I have a question and I can't find the answer in these resources. Where do I go for help?**
+
+- Ask for help on the [RLadies-Philly Slack](https://bit.ly/join-rladies-slack-2020) #help channel or in the datathon slack channel #datathon2021
 
 ## Process
 
 **I missed the kickoff event. Can I still participate?**
 
-- Yes! Watch the kickoff event video, join our Slack channel, and reach out on slack to the team you would like to join.
+If you weren't able to attend our [Kick-off Meetup](https://www.meetup.com/rladies-philly/events/276365040/), here's how to get involved:
+
+1. Watch the kickoff event video (link to be posted) and take a look at the slides introducing the project (link to follow)
+2. Take a look at the [github repo](https://github.com/rladiesPHL/2021_datathon) for the project. Read the [readme](README.md)!
+3. If you don’t already have one, create a [github account](https://github.com/join) (see our [github workflow recommendations](https://docs.google.com/document/d/1vF7uWo2ITXcifyNoLd8ZTJdNPx0Pd4eXXrdkKVfbAkY/edit?usp=sharing)).
+4. If you haven’t already, install [R](https://www.r-project.org/) and [R-Studio](https://www.rstudio.com/products/rstudio/download/#download) on your computer.
+5. If you haven’t already, join the [R-Ladies Philly slack](https://join.slack.com/t/rladies-philly/shared_invite/zt-92p8xec5-XOHRmHtmhYQRaVqmrshCcA).
+    + In the R-Ladies Philly slack, join the **#2021_datathon** channel (to join channels in slack, click on the *channels* title in the left side bar).
+6. Add your details under the team you want to join in [this google doc](https://docs.google.com/document/d/1U6tHOrF_ikBtdFJSj0aT9yfp9jnFqZYIsxcgKBOH9qU/edit?usp=sharing). Don't worry about group size; the more the merrier!
+7. Join your team’s specific slack channel (listed in the google doc above) and introduce yourself to your team members! :smiley: Share your ideas or ask how you can get started.
+
+If you have any questions don't hesitate to get in touch. Send a message in the **#2021_datathon* slack channel or email the organisers (philly@rladies.org)!
 
 **How do I contact a team?**
 
