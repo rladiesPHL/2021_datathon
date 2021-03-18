@@ -1,0 +1,117 @@
+---
+title: "Clean `defendant_docket_details.csv`"
+author: "R-Ladies Philly Team 3"
+date: "3/18/2021"
+output:
+  html_document:
+    theme: lumen
+    highlight: tango
+    toc: yes
+    toc_depth: 1
+    toc_float: TRUE
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(kableExtra)
+
+view_table <- function(tbl) {
+  kable(tbl) %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+}
+```
+
+# Package dependencies
+
+```{r dependencies, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(janitor)
+library(assertr)
+```
+
+# Get data
+
+```{r get_data}
+
+# TEMP: just 2020 data
+ddt <- read_csv("https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details_2020.csv") %>%
+  clean_names()
+
+# Crosswalks allow us to collapse messy processing statuses and representation types
+# Ask about where we should store files like this
+processing_status_xwalk   <- read_csv(file.path("status_xwalk.csv"))
+representation_type_xwalk <- read_csv(file.path("representation_type_xwalk.csv"))
+
+# Consider shortening selected long names
+names(ddt)[which(str_length(names(ddt)) > 32)]
+```
+
+# Set expected data values
+
+```{r expected_vals}
+date_fmt                 <- "\\d{4}-\\d{2}-\\d{2}"
+gender_cats              <- c("Female", "Male")
+race_cats                <- c("Asian/Pacific Islander",
+                              "Black",
+                              "Native American/Alaskan Native",
+                              "Unknown/Unreported",
+                              "White")
+status_cats              <- c("Active", "Adjudicated", "Closed", "Inactive")
+court_cats               <- c("Municipal Court - Philadelphia County",
+                              "Philadelphia County Court of Common Pleas")
+court_abbrev_cats        <- c("CP", "CP, MC", "MC", "MC, CP")
+processing_status_cats   <- unique(processing_status_xwalk$orig_processing_status)
+court_office_cats        <- c("Criminal",
+                              "Criminal, Municipal",
+                              "Municipal",
+                              "Municipal, Criminal")
+representation_type_cats <- unique(representation_type_xwalk$orig_representation_type)
+```
+
+# Check input data
+
+```{r check_inputs}
+ddt %>%
+  verify(is_uniq(docket_id)) %>%
+  verify(gender %in% gender_cats) %>%
+  verify(race %in% race_cats | is.na(race)) %>%
+  verify(str_detect(date_of_birth, date_fmt) | is.na(date_of_birth)) %>%
+  verify(str_detect(arrest_date, date_fmt) | is.na(arrest_date)) %>%
+  verify(str_detect(complaint_date, date_fmt) | is.na(complaint_date)) %>%
+  verify(str_detect(disposition_date, date_fmt) | is.na(disposition_date)) %>%
+  verify(str_detect(filing_date, date_fmt) | is.na(filing_date)) %>%
+  verify(str_detect(initiation_date, date_fmt) | is.na(initiation_date)) %>%
+  verify(status_name %in% status_cats) %>%
+  verify(court_office_court_display_name %in% court_cats) %>%
+  verify(current_processing_status_processing_status %in% processing_status_cats | is.na(current_processing_status_processing_status)) %>%
+  verify(str_detect(current_processing_status_status_change_datetime, date_fmt)) %>%
+  verify(municipality_name == "Philadelphia City" | is.na(municipality_name)) %>%
+  verify(municipality_county_name == "Philadelphia" | is.na(municipality_county_name)) %>%
+  verify(judicial_districts == "Philadelphia") %>%
+  verify(court_office_types %in% court_office_cats) %>%
+  verify(court_types %in% court_abbrev_cats) %>%
+  verify(representation_type %in% representation_type_cats) %>%
+  invisible()
+
+```
+
+# Clean data
+
+```{r clean_data}
+# TO DO
+
+# Race should be "Unknown/Unreported" if missing
+# Note that some DOBs are 1900-01-01 -- system date? Check all date columns for unexpected values. Set to NA if weird. and/or check with JAT about them
+# this includes current_processing_status_status_change_datetime
+# really dig into processing status xwalk. it is likely incorrect
+# why would some of these records have municipality_name + municipality_county_name NA? Should we keep these records?
+# create indicator variables for court_office_types
+# it looks like court_office_types and court_types are same, just one is abbreviated -- verify this!
+# create indicator variables for representation_type. also is it meaningful to have sum of representation types?
+# unsure of meaning of "court appointed" in representation_type. need to talk to someone from JAT.
+```
+
+```{r export}
+# TO DO: export data somewhere
+```

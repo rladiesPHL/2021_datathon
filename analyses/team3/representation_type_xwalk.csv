@@ -1,0 +1,17 @@
+orig_representation_type,rep_private,rep_court_appointed,rep_prosecutor,rep_public_defender,rep_district_attorney,rep_standby,rep_complainant_attorney
+Private,1,1,,,,,
+"Private, Court Appointed",,1,,,,,
+"Private, Prosecutor",1,,1,,,,
+"Private, Prosecutor, Court Appointed",1,1,1,,,,
+"Private, Prosecutor, Court Appointed, Public Defender",1,1,1,1,,,
+"Private, Prosecutor, District Attorney",1,,1,,1,,
+"Private, Prosecutor, Public Defender",1,,1,1,,,
+"Private, Prosecutor, Public Defender, District Attorney",1,,1,1,1,,
+"Private, Prosecutor, Standby - Court Appointed",1,,1,,,1,
+Prosecutor,,,1,,,,
+"Prosecutor, Complainant's Attorney",,,1,,,,1
+"Prosecutor, Court Appointed",,1,1,,,,
+"Prosecutor, Court Appointed, Public Defender",,1,1,1,,,
+"Prosecutor, Public Defender",,,1,1,,,
+"Prosecutor, Public Defender, District Attorney",,,1,1,1,,
+"Prosecutor, Standby - Court Appointed",,1,1,,,1,
