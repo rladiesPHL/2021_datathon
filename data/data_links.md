@@ -2,6 +2,10 @@
 
 Click on each link to download the respective dataset:
 
+### **NEW:** Statute Name (legal code number) and Description
+
+[statutes.csv](statutes.csv)
+
 ### Offenses and disposition info
 
 All years:
