@@ -27,17 +27,28 @@ bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datatho
 # Clean files and summarize
 od_clean <- clean_periods(od)
 od_clean <- clean_descriptions(od_clean)
-od_clean <- aggregate_od(od_clean)
+# Because we care about JUDGES. I will go ahead and remove all the dockets w/o a disposition
+# These have no judges
+od_clean <- od_clean %>% 
+  group_by(docket_id) %>% 
+  mutate(no_disposition = all(is.na(disposition))) %>% 
+  ungroup() %>% filter(no_disposition==FALSE)
+
+od_agg <- aggregate_od(od_clean)
 bail_clean <- aggregate_bails(bail)
 # We could add functions to "augment" the data:
 # Add additional variables (e.g., time differences)
 
-# Merge into one file (one docket per row)
+# Merge into one file (one docket:judge combo per row)
 # Note: It probably does not make sense to have one docket per row
-# Instead could have a different unit like one crime per row
-# not all dockets have bail
-merged <- left_join(ddd, bail_clean) %>% 
-  left_join(od_clean)
+# Here there can be multiple rows per docket if there were multiple judges (rare)
+# not all dockets will be included here - some filtered out
+merged <- left_join(od_agg, bail_clean,by = "docket_id") %>% 
+  left_join(ddd,by = "docket_id")
+
+# Example docket with 3 judges: 	14284
+# Example docket with 3 dispositions: 5134
+
 
 # Save out:
 LOCAL_LOCATION <- '~/Documents/'

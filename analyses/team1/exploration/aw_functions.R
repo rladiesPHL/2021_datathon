@@ -22,6 +22,7 @@ aggregate_bails <- function(data){
     summarise(min_bail_amount = min(total_amount, na.rm=T),
               max_bail_amount = max(total_amount, na.rm=T),
               type_name_list = list(type_name),
+              percentage_list = list(percentage),
               first_bail_action_date = min(action_date, na.rm = T),
               last_bail_action_date = max(action_date, na.rm = T),
               action_type_list = list(action_type_name)) %>% 
@@ -33,13 +34,19 @@ aggregate_bails <- function(data){
 
 #' Aggregate the Offenses and Dispositions dataset
 #' 
-#' Converts the dataset to a one docket per row dataset by aggregating. 
+#' Converts the dataset to a one row per docket_id:judge
+#' Not all offenses have a corresponding sentence
+#' There are multiple rows per offense when there are mult. sentences 
+#' (i.e. confinement and probation)
 #' This may not be what we want but for the purpose of illustration and 
 #' moving fast, this is what I did.
+#' We end up with a summarization of all the information as nested lists.
+#' We also spread to wide to add columns for min, max periods from each sentence type
+#' (Confinement, Probation). When there were mutliple of these sentences, then took max value.
 #'
-#' @param data Offenses and Dispositions data.frame from the original dataset
+#' @param data Offenses and Dispositions data.frame from the original dataset after adding the cleaned desc_main and min_period_days, max_period_days variables.
 #'
-#' @return data.frame with min_grade and max_grade columns
+#' @return data.frame with min_grade and max_grade columns and nested lists
 #'
 
 aggregate_od <- function(data){
@@ -47,21 +54,30 @@ aggregate_od <- function(data){
                     "M","M3","M2","M1",
                     "F","F3","F2","F1",
                     "H","H2","H1")
-  data %>% 
-    # distinct(docket_id, grade, .keep_all = TRUE) %>% 
+  widened <- data %>% 
+    distinct(docket_id, min_period_days,max_period_days,sentence_type) %>% 
+    filter(!is.na(sentence_type), sentence_type %in% c("Confinement","Probation")) %>% 
+    tidyr::pivot_wider(names_from = sentence_type, values_from = contains("period"),
+                       values_fn = max) 
+  grades <- data %>% 
     # convert grade to factor - low to high
     mutate(grade = factor(grade, levels = grade_levels)) %>% 
     group_by(docket_id) %>% 
     arrange(grade) %>% 
     summarise(min_grade = grade[1],
               max_grade = grade[n()],
-              min_period_list = list(min_period_mos),
-              max_period_list = list(max_period_mos),
-              description_list = list(desc_main),
-              sentence_type_list = list(sentence_type),
-              judge_list = list(unique(disposing_authority__document_name))) %>% 
-    ungroup() %>% 
-    unique()
+              desc_main_list = list(unique(desc_main)),
+              sentence_type_list = list(unique(sentence_type)),
+              disposition_list = list(unique(disposition)),
+              disposition_method_list = list(unique(na.omit(disposition_method)))) %>% 
+    ungroup() 
+  
+  judges <- data %>% 
+    distinct(docket_id, disposing_authority__document_name) %>% 
+    rename(judge = disposing_authority__document_name) %>% 
+    filter(!is.na(judge))
+  
+  merge(judges, merge(widened, grades, by = "docket_id", all.x=T, all.y=T), by = "docket_id", all.x=T, all.y=T)
   
 }
 

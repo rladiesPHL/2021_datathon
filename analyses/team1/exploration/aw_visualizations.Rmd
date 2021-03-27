@@ -26,8 +26,104 @@ I used the data I had already manipulated and saved locally in the 'aw_process_d
 merged <- readRDS('~/Documents/merged_jat.Rds')
 ```
 
+## Judge scorecard/summary
+Can we filter by judge, then show some dashboard about them??
 
-How many dockets with some bail entry had no bail amount > 0 ? (Could be ROR or nonmonetary)
+- Number of dockets
+- Bail information
+- Sentence information
+- Facet by time, defendant information
+- Social media or news about them?
+
+Top 5 judges by year (number of dockets)
+```{r}
+merged %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  group_by(year) %>% 
+  mutate(judge = forcats::fct_lump_n(judge, n=5))%>% 
+  ungroup() %>% 
+  filter(judge!="Other") %>% 
+  count(year,judge, sort=F) 
+```
+
+```{r}
+myjudge <- "Rayford A. Means"
+```
+
+Here I have picked `r myjudge` to examine.
+
+```{r}
+mydata <- filter(merged, judge==myjudge)
+# Only one docket per row
+```
+
+### Total dockets per year
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  ggplot(aes(x=year)) + 
+  geom_bar() + 
+  labs(title=myjudge,
+       subtitle = "Dockets per year") + 
+  theme_bw()
+```
+
+### Demographics of defendants
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  ggplot(aes(x=gender)) + 
+  geom_bar() + 
+  labs(title=myjudge,
+       subtitle = "Defendant gender") + 
+  theme_bw()
+```
+
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  ggplot(aes(x=race)) + 
+  geom_bar() + 
+  labs(title=myjudge,
+       subtitle = "Defendant race") + 
+  theme_bw()
+```
+
+
+### Dispositions
+One idea would be to look at the sentences that fall outside the sentencing guidelines. Do some judges do this more or less?
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  filter(!is.na(max_period_days_Confinement)) %>% 
+  ggplot(aes(x=max_grade, group= max_grade, y= max_period_days_Confinement)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height=0,width=0.2) + 
+  scale_y_log10() + 
+  labs(title=myjudge,
+       subtitle = "max confinement sentences (days) by highest grade offense") + 
+  theme_bw()
+```
+
+### Bail
+
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  filter(!is.na(max_bail_amount), max_bail_amount>0) %>% 
+  ggplot(aes(x=max_grade, group= max_grade, y= max_bail_amount)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color = year>2017)) + 
+  scale_y_log10() +
+  labs(title=myjudge,
+       subtitle = "max bail total amount by highest grade offense",
+       caption = "Note that this excludes $0 max bail") + 
+  theme_bw()
+```
+
+## Other ideas
+
+How many dockets had no bail amount > 0 ? (Could be ROR or nonmonetary)
 
 ```{r}
 merged %>% 
