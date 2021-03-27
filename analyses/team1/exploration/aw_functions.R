@@ -65,46 +65,32 @@ aggregate_od <- function(data){
   
 }
 
+
+#' @example
+#' extract_days(x = "2 weeks and 1 day")
+#' Author: jake (Thank you)
+extract_days <- function(x) {
+  tolower(x) %>% 
+    stringr::str_remove("and ") %>% 
+    lubridate::duration() %>% 
+    lubridate::seconds_to_period() %>% 
+    lubridate::day()
+}
+
 #' Clean the sentence period variables
 #' @description This function takes in a data.frame with min, max period variables and 
 #' transforms to be easier to work with. 
 #'  
 #' @param data Offenses and Dispositions data.frame from the original dataset
-#' @return  modified data.frame with cleaned min_period_mos and max_period_mos. These are the cleaned values in the unit of months
+#' @return  modified data.frame with cleaned min_period_days and max_period_days. These are the cleaned values in the unit of months
 #' 
 #' 
 clean_periods <- function(data){
   if (!all(c("min_period", "max_period") %in% colnames(data))) stop('variables missing from input data')
   
-  clean_od<- data %>% 
-    mutate(minperiod_years = stringr::str_extract(min_period, ".+?(?=Year)"),
-           minperiod_months = stringr::str_extract(min_period, 
-                                                   "(\\d+.\\d+)[^\\d]+?(?=Month)|(\\d+)[^\\d]+?(?=Month)"),
-           minperiod_days = stringr::str_extract(min_period, 
-                                                 "(\\d+.\\d+)[^\\d]+?(?=Day)|(\\d+)[^\\d]+?(?=Day)"),
-    ) %>% 
-    #Combine min_period_1 and min_period_2 and min_period_3
-    mutate_at(vars(starts_with("minper")), as.numeric) %>%
-    mutate(minperiod_years = ifelse(is.na(minperiod_years), 0, minperiod_years),
-           minperiod_months = ifelse(is.na(minperiod_months), 0, minperiod_months),
-           minperiod_days = ifelse(is.na(minperiod_days), 0, minperiod_days),
-           min_period_mos = minperiod_years*12 + minperiod_months + minperiod_days/30) %>% 
-    select(-minperiod_years, -minperiod_months, -minperiod_days) %>% 
-    mutate(maxperiod_years = stringr::str_extract(max_period, ".+?(?=Year)"),
-           maxperiod_months = stringr::str_extract(max_period, 
-                                                   "(\\d+.\\d+)[^\\d]+?(?=Month)|(\\d+)[^\\d]+?(?=Month)"),
-           maxperiod_days = stringr::str_extract(max_period, 
-                                                 "(\\d+.\\d+)[^\\d]+?(?=Day)|(\\d+)[^\\d]+?(?=Day)"),
-    ) %>% 
-    #Combine max_period_1 and max_period_2 and max_period_3
-    mutate_at(vars(starts_with("maxper")), as.numeric) %>%
-    mutate(maxperiod_years = ifelse(is.na(maxperiod_years), 0, maxperiod_years),
-           maxperiod_months = ifelse(is.na(maxperiod_months), 0, maxperiod_months),
-           maxperiod_days = ifelse(is.na(maxperiod_days), 0, maxperiod_days),
-           max_period_mos = maxperiod_years*12 + maxperiod_months + maxperiod_days/30) %>% 
-    select(-maxperiod_years, -maxperiod_months, -maxperiod_days)
-  
-  clean_od
+  data %>% 
+    mutate(min_period_days = extract_days(min_period),
+           max_period_days = extract_days(max_period))
 }
 
 
