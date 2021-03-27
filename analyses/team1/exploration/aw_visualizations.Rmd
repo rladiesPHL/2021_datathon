@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, results = "asis")
 ```
 
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
@@ -20,89 +20,31 @@ library(dplyr)
 # Summary
 Read in the datasets from 'data_links.md' and summarize the data with the `gtsummary` package.
 
-I used the smaller datasets with selected years to go faster.
+I used the data I had already manipulated and saved locally in the 'aw_process_data.R' script.
 
 ```{r message=FALSE}
-od_orig <- 
-  readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_2010_2011.csv')
-ddd_orig <- 
-  readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details_2010_2011.csv')
-
-bailcols <- readr::cols(
-  docket_id = col_double(),
-  action_date = col_date(format = ""),
-  action_type_name = col_character(),
-  type_name = col_character(),
-  percentage = col_double(),
-  total_amount = col_double(),
-  registry_entry_code = col_character(),
-  participant_name__title = col_character(),
-  participant_name__last_name = col_character(),
-  participant_name__first_name = col_character()
-)
-bail_orig <- 
-  rbind(readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail_2010.csv',
-                        col_types = bailcols),
-        readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail_2011.csv',
-                        col_types = bailcols))
-
+merged <- readRDS('~/Documents/merged_jat.Rds')
 ```
 
-
-```{r}
-# select vars of interest, merge together
-
-bail <- bail_orig %>% 
-  distinct(docket_id, total_amount, type_name, action_type_name) %>% 
-  # For now, take highest number
-  group_by(docket_id) %>% 
-  summarise(min_bail_amount = min(total_amount, na.rm=T),
-            max_bail_amount = max(total_amount, na.rm=T),
-            all_type_name = list(type_name),
-            all_action = list(action_type_name)) %>% 
-  ungroup()
-
-ddd <- ddd_orig %>% 
-  distinct(docket_id, court_types, representation_type)
-
-grade_levels <- c("IC","S","S3","S2","S1",
-                  "M","M3","M2","M1",
-                  "F","F3","F2","F1",
-                  "H","H2","H1")
-od <- od_orig %>% 
-  distinct(docket_id, grade) %>% 
-  # convert grade to factor - low to high
-  mutate(grade = factor(grade, levels = grade_levels)) %>% 
-  group_by(docket_id) %>% 
-  arrange(grade) %>% 
-  summarise(min_grade = grade[1],
-         max_grade = grade[n()]) %>% 
-  ungroup()
-
-# not all dockets have bail
-merged <- left_join(ddd, bail) %>% 
-  left_join(od)
-
-# Should we summarise the RORs? This is no bail - total_amount==0
-
-```
 
 How many dockets with some bail entry had no bail amount > 0 ? (Could be ROR or nonmonetary)
 
 ```{r}
 merged %>% 
   filter(max_bail_amount == 0) %>% 
-  count(max_grade, sort=T)
+  count(max_grade, sort=T) %>% 
+  pander::pander()
 ```
 
-What about bail == 0 for representation type?
+What about bail == 0 by representation type?
 ```{r}
 merged %>% 
   mutate(zero_bail = ifelse(max_bail_amount == 0, T, F)) %>% 
-  count(representation_type, zero_bail, sort=T)
+  count(representation_type, zero_bail, sort=T) %>% 
+  pander::pander()
 ```
 
-The minimum bail per docket ranges from 1 dollar to 10 Million dollars
+The minimum bail per docket ranges from 1 dollar to 100,100,000 dollars
 
 ```{r}
 merged %>% 
@@ -111,12 +53,26 @@ ggplot( aes(x=max_grade, y= min_bail_amount))+
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(height=0, width=0.15, alpha=0.5) +
   scale_y_log10() +
-  labs(title = "Min bail amount when >0",
-       subtitle = "2010-2011") + 
+  labs(title = "Min bail amount when >$0",
+       subtitle = "All years") + 
   theme_bw()
 
 ```
 
+We could imagine a dashboard to select certain years or grades. For example, here we select dockets with "S" grade as the max grade and plot by year (filing date).
+```{r}
+merged %>% 
+  filter(min_bail_amount>0, max_grade == "S") %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+ggplot( aes(x=year, group = year, y= min_bail_amount))+
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height=0, width=0.15, alpha=0.5) +
+  scale_y_log10() +
+  labs(title = "Min bail amount when >$0",
+       subtitle = "Max grade of S") + 
+  theme_bw()
+
+```
 
 ```{r}
 sessionInfo()
