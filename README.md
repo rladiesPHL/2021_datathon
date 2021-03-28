@@ -100,7 +100,7 @@ R-Ladies is dedicated to providing a harassment-free experience for everyone. We
 
 If you weren't able to attend our [Kick-off Meetup](https://www.meetup.com/rladies-philly/events/276365040/), here's how to get involved:
 
-1. Watch the kickoff event video (link to be posted) and take a look at the slides introducing the project (link to follow)
+1. Watch the kickoff event [video](https://youtu.be/sV4RylIrZ6w) and take a look at the [slides](https://docs.google.com/presentation/d/1iMutdI_1nyvegZ1lKVgd4EW4TguGAUMklNsFt--L8NU/edit?usp=sharing) introducing the project
 2. Take a look at the [github repo](https://github.com/rladiesPHL/2021_datathon) for the project. Read the [readme](README.md)!
 3. If you don’t already have one, create a [github account](https://github.com/join) (see our [github workflow recommendations](https://docs.google.com/document/d/1vF7uWo2ITXcifyNoLd8ZTJdNPx0Pd4eXXrdkKVfbAkY/edit?usp=sharing)).
 4. If you haven’t already, install [R](https://www.r-project.org/) and [R-Studio](https://www.rstudio.com/products/rstudio/download/#download) on your computer.
