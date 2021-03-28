@@ -49,6 +49,16 @@ aggregate_bails <- function(data){
 #' @return data.frame with min_grade and max_grade columns and nested lists
 #'
 
+# Don't like nas or returning -Inf
+max_nona <- function(x){
+  if (all(is.na(x))) {
+    NA
+  } else {
+    max(x, na.rm = TRUE)
+  }
+}
+
+
 aggregate_od <- function(data){
   grade_levels <- c("IC","S","S3","S2","S1",
                     "M","M3","M2","M1",
@@ -56,9 +66,10 @@ aggregate_od <- function(data){
                     "H","H2","H1")
   widened <- data %>% 
     distinct(docket_id, min_period_days,max_period_days,sentence_type) %>% 
+    # Have cases with 2 rows per docket_id, sentence_type
     filter(!is.na(sentence_type), sentence_type %in% c("Confinement","Probation")) %>% 
     tidyr::pivot_wider(names_from = sentence_type, values_from = contains("period"),
-                       values_fn = max) 
+                       values_fn = max_nona) 
   grades <- data %>% 
     # convert grade to factor - low to high
     mutate(grade = factor(grade, levels = grade_levels)) %>% 
@@ -77,7 +88,8 @@ aggregate_od <- function(data){
     rename(judge = disposing_authority__document_name) %>% 
     filter(!is.na(judge))
   
-  merge(judges, merge(widened, grades, by = "docket_id", all.x=T, all.y=T), by = "docket_id", all.x=T, all.y=T)
+  merge(judges, merge(widened, grades, by = "docket_id", all.x=T, all.y=T), 
+        by = "docket_id", all.x=T, all.y=T)
   
 }
 
@@ -96,6 +108,7 @@ extract_days <- function(x) {
 #' Clean the sentence period variables
 #' @description This function takes in a data.frame with min, max period variables and 
 #' transforms to be easier to work with. 
+#' This function NEEDS MORE TESTING
 #'  
 #' @param data Offenses and Dispositions data.frame from the original dataset
 #' @return  modified data.frame with cleaned min_period_days and max_period_days. These are the cleaned values in the unit of months
@@ -106,7 +119,24 @@ clean_periods <- function(data){
   
   data %>% 
     mutate(min_period_days = extract_days(min_period),
-           max_period_days = extract_days(max_period))
+           max_period_days = extract_days(max_period)) %>%
+  # Some cases have NA for min/max, but values for period
+  # These tend to be a mess: "dd to dd years" or "dd YEARS - dd YEARS" or "LIFE"
+    mutate(period = tolower(period),
+           period = stringr::str_replace(period, " to "," - "),
+           life_sentence = grepl("life",period)) %>% 
+    tidyr::separate(period, remove = F, into = c("min_temp","max_temp"),
+                    sep = " - ", fill = "left") %>% 
+    mutate(min_temp = case_when(
+      grepl("month|year|day", min_temp) ~ min_temp,
+      grepl("month|year|day", max_temp) ~ paste(min_temp, stringr::str_extract(max_temp, "month|year|day"))
+    ),
+    max_temp = extract_days(max_temp),
+    min_temp = extract_days(min_temp),
+    max_period_days = coalesce(max_period_days, max_temp),
+    min_period_days = coalesce(min_period_days, min_temp)) %>% 
+    select(-min_temp, -max_temp)
+    
 }
 
 

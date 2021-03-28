@@ -10,21 +10,78 @@
 # for building this type of data pipeline
 # But I want to keep it simple. So we just call some R functions
 
-# Load packages
+# Load packages ----
+library(readr)
 library(dplyr)
 
-# Source scripts - file paths are relative to project directory
+# Source scripts - file paths are relative to project directory ----
 # Set your working directory there
 source('analyses/team1/exploration/aw_functions.R')
 
 
-# Read in the data from internet
-od <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions.csv')
-ddd <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details.csv')
-bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail.csv')
+# Read in the data from internet - define readr cols for parsing failures ----
+odcols <- cols(
+  docket_id = col_double(),
+  description = col_character(),
+  statute_description = col_character(),
+  sequence_number = col_double(),
+  grade = col_character(),
+  disposition = col_character(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  disposing_authority__title = col_character(),
+  disposing_authority__document_name = col_character(),
+  disposition_method = col_character(),
+  min_period = col_character(),
+  max_period = col_character(),
+  period = col_character(),
+  sentence_type = col_character()
+)
+od <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions.csv',
+                      col_types = odcols)
+
+dddcols = cols(
+  docket_id = col_double(),
+  gender = col_character(),
+  race = col_character(),
+  date_of_birth = col_date(format = ""),
+  arrest_date = col_date(format = ""),
+  complaint_date = col_date(format = ""),
+  disposition_date = col_date(format = ""),
+  filing_date = col_date(format = ""),
+  initiation_date = col_date(format = ""),
+  status_name = col_character(),
+  court_office__court__display_name = col_character(),
+  current_processing_status__processing_status = col_character(),
+  current_processing_status__status_change_datetime = col_date(format = ""),
+  municipality__name = col_character(),
+  municipality__county__name = col_character(),
+  judicial_districts = col_character(),
+  court_office_types = col_character(),
+  court_types = col_character(),
+  representation_type = col_character()
+)
+ddd <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details.csv',
+                       col_types = dddcols)
+
+bailcols <- readr::cols(
+  docket_id = col_double(),
+  action_date = col_date(format = ""),
+  action_type_name = col_character(),
+  type_name = col_character(),
+  percentage = col_double(),
+  total_amount = col_double(),
+  registry_entry_code = col_character(),
+  participant_name__title = col_character(),
+  participant_name__last_name = col_character(),
+  participant_name__first_name = col_character()
+)
+bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail.csv',
+                        col_types = bailcols)
 
 
-# Clean files and summarize
+# Clean files and summarize ----
 od_clean <- clean_periods(od)
 od_clean <- clean_descriptions(od_clean)
 # Because we care about JUDGES. I will go ahead and remove all the dockets w/o a disposition
@@ -39,7 +96,7 @@ bail_clean <- aggregate_bails(bail)
 # We could add functions to "augment" the data:
 # Add additional variables (e.g., time differences)
 
-# Merge into one file (one docket:judge combo per row)
+# Merge into one file (one docket:judge combo per row) ----
 # Note: It probably does not make sense to have one docket per row
 # Here there can be multiple rows per docket if there were multiple judges (rare)
 # not all dockets will be included here - some filtered out
@@ -50,7 +107,7 @@ merged <- left_join(od_agg, bail_clean,by = "docket_id") %>%
 # Example docket with 3 dispositions: 5134
 
 
-# Save out:
+# Save out: -----
 LOCAL_LOCATION <- '~/Documents/'
 saveRDS(merged, paste0(LOCAL_LOCATION, "merged_jat.Rds"))
 
