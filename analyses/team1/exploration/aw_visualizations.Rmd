@@ -18,16 +18,142 @@ library(dplyr)
 
 
 # Summary
-Read in the datasets from 'data_links.md' and summarize the data with the `gtsummary` package.
-
+This is just a stream of consciousness exploration of the data and debugging all the data manipulations.
 I used the data I had already manipulated and saved locally in the 'aw_process_data.R' script.
 
 ```{r message=FALSE}
 merged <- readRDS('~/Documents/merged_jat.Rds')
 ```
 
+## Judge scorecard/summary
+Can we filter by judge, then show some dashboard about them??
 
-How many dockets with some bail entry had no bail amount > 0 ? (Could be ROR or nonmonetary)
+- Number of dockets
+- Bail information
+- Sentence information
+- Facet by time, defendant information
+- Social media or news about them?
+
+Top 5 judges by year (number of dockets)
+```{r}
+merged %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  group_by(year) %>% 
+  mutate(judge = forcats::fct_lump_n(judge, n=5))%>% 
+  ungroup() %>% 
+  filter(judge!="Other") %>% 
+  count(year,judge, sort=F) %>% 
+  pander::pander()
+```
+
+
+Let's take [Rayford A. Means](https://ballotpedia.org/Rayford_A._Means) as an example. 
+
+This [article](https://digital.olivesoftware.com/Olive/ODN/PhiladelphiaInquirer/shared/ShowArticle.aspx?doc=PHQP%2F2019%2F10%2F27&entity=Ar01701&sk=614449E1&mode=text#) claims that he was sentencing for longer than other judges for retail theft.
+
+```{r}
+myjudge <- "Rayford A. Means"
+```
+
+Here I have picked `r myjudge` to examine.
+
+```{r}
+mydata <- filter(merged, judge==myjudge) # Only one docket per row
+
+```
+
+### Total dockets per year
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  ggplot(aes(x=year)) + 
+  geom_bar() + 
+  labs(title=myjudge,
+       subtitle = "Dockets per year") + 
+  theme_bw()
+```
+
+### Demographics of defendants
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  ggplot(aes(x=gender)) + 
+  geom_bar() + 
+  labs(title=myjudge,
+       subtitle = "Defendant gender") + 
+  theme_bw()
+```
+
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  ggplot(aes(x=race)) + 
+  geom_bar() + 
+  labs(title=myjudge,
+       subtitle = "Defendant race") + 
+  theme_bw()
+```
+
+
+### Dispositions
+One idea would be to look at the sentences that fall outside the sentencing guidelines. Do some judges do this more or less?
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  filter(!is.na(max_period_days_Confinement)) %>% 
+  ggplot(aes(x=max_grade, group= max_grade, y= max_period_days_Confinement)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height=0,width=0.2) + 
+  scale_y_log10() + 
+  labs(title=myjudge,
+       subtitle = "max confinement sentences (days) by highest grade offense") + 
+  theme_bw()
+```
+
+Take the case of "retail theft" - there are mutliple descriptions with some sort of retail theft. These could vary a lot, but for now, take anything with "retail theft" in it. Lots of these dockets contain other crimes that might be much more severe. A quick check says that there are some felonies.
+
+```{r}
+merged$retail_theft <- merged$desc_main_list %>% grepl(pattern = "Retail Theft|Retail theft|retail theft",unlist(.))
+```
+
+```{r}
+merged %>% 
+  mutate(year = lubridate::year(filing_date),
+         select_judge = ifelse(judge==myjudge, T, F),
+         max_sentence_all = pmax(max_period_days_Probation,max_period_days_Confinement,
+                                 na.rm = T),
+         included_felony = ifelse(max_grade %in% c("F","F1","F2","F3"), T, F)) %>% 
+  filter(retail_theft) %>% 
+  ggplot(aes(x=select_judge, group= select_judge, y= max_sentence_all)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height=0,width=0.2, aes(color = included_felony)) + 
+  # facet_wrap(~year) + 
+  # scale_y_log10() + 
+  labs(title=myjudge,
+       x = "Is Rayford A. Means the judge?",
+       subtitle = "max sentences (days confinement or probation) for retail theft") + 
+  theme_bw()
+```
+
+### Bail
+
+```{r}
+mydata %>% 
+  mutate(year = lubridate::year(filing_date)) %>% 
+  filter(!is.na(max_bail_amount), max_bail_amount>0) %>% 
+  ggplot(aes(x=max_grade, group= max_grade, y= max_bail_amount)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color = year>2017)) + 
+  scale_y_log10() +
+  labs(title=myjudge,
+       subtitle = "max bail total amount by highest grade offense",
+       caption = "Note that this excludes $0 max bail") + 
+  theme_bw()
+```
+
+## Other ideas
+
+How many dockets had no bail amount > 0 ? (Could be ROR or nonmonetary)
 
 ```{r}
 merged %>% 
@@ -36,13 +162,6 @@ merged %>%
   pander::pander()
 ```
 
-What about bail == 0 by representation type?
-```{r}
-merged %>% 
-  mutate(zero_bail = ifelse(max_bail_amount == 0, T, F)) %>% 
-  count(representation_type, zero_bail, sort=T) %>% 
-  pander::pander()
-```
 
 The minimum bail per docket ranges from 1 dollar to 100,100,000 dollars
 
