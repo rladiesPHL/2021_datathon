@@ -76,12 +76,11 @@ judges <- bail_judges %>%
   group_by(period, judge_name) %>% 
   summarise(total_adj_n = sum(weighted_n)) 
 
-top_judges <- judges %>% 
-  top_n(10, total_adj_n) %>% 
-  pull(judge_name)
-
 judges %>% 
-  filter(judge_name %in% top_judges) %>% 
+  mutate(rank = dense_rank(desc(total_adj_n))) %>% 
+  group_by(judge_name) %>% 
+  filter(min(rank) <= 10) %>%
+  select(- rank) %>% 
   pivot_wider(names_from = judge_name, 
               values_from = total_adj_n, 
               values_fill = 0) %>% 
