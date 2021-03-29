@@ -69,7 +69,7 @@ bail_judges <- bail_larry %>%
 
 judges <- bail_judges %>%
   count(period, docket_id, judge_name) %>% 
-  filter(!is.na(judge_name)) %>% 
+  drop_na(judge_name) %>% 
   group_by(docket_id) %>% 
   mutate(weighted_n = n/sum(n)) %>% 
   ungroup() %>% 
