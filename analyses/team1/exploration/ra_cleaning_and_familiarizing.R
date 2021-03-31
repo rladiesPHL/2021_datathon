@@ -1,53 +1,34 @@
-#Load data and libraries
-bail <- read.csv("baildata.csv")
-details <- read.csv("defendant_docket_details.csv")
-ids <- read.csv("defendant_docket_ids.csv")
-dispositions <- read.csv("offenses_dispositions.csv")
-library(ggplot2)
-
-str(bails)
-str(details)
-str(ids)
-str(dispositions)
-
-#Separate dates into separate integer columns for year, month, and date
-bail$action_datey <- as.integer(substr(bail$action_date,1,4))
-bail$action_datem <- as.integer(substr(bail$action_date,6,7))
-bail$action_dated <- as.integer(substr(bail$action_date,9,10))
-details$DOBy <- as.integer(substr(details$date_of_birth,1,4))
-details$DOBm <- as.integer(substr(details$date_of_birth,6,7))
-details$DOBd <- as.integer(substr(details$date_of_birth,9,10))
-details$arrest_datey <- as.integer(substr(details$arrest_date,1,4))
-details$arrest_datem <- as.integer(substr(details$arrest_date,6,7))
-details$arrest_dated <- as.integer(substr(details$arrest_date,9,10))
-details$complaint_datey <- as.integer(substr(details$complaint_date,1,4))
-details$complaint_datem <- as.integer(substr(details$complaint_date,6,7))
-details$complaint_dated <- as.integer(substr(details$complaint_date,9,10))
-details$disposition_datey <- as.integer(substr(details$disposition_date,1,4))
-details$disposition_datem <- as.integer(substr(details$disposition_date,6,7))
-details$disposition_dated <- as.integer(substr(details$disposition_date,9,10))
-details$filing_datey <- as.integer(substr(details$filing_date,1,4))
-details$filing_datem <- as.integer(substr(details$filing_date,6,7))
-details$filing_dated <- as.integer(substr(details$filing_date,9,10))
-details$initiation_datey <- as.integer(substr(details$initiation_date,1,4))
-details$initiation_datem <- as.integer(substr(details$initiation_date,6,7))
-details$initiation_dated <- as.integer(substr(details$initiation_date,9,10))
+#----- Load data and libraries
+library(tidyverse)
+bail <- read.csv('baildata.csv')
+details <- read.csv('defendant_docket_details.csv')
+ids <- read.csv('defendant_docket_ids.csv')
+dispositions <- read.csv('offenses_dispositions.csv')
 
 
-#Renaming and factoring columns
-colnames(bail) <- c("docket_ID", "full_date", "action_type", "type_name", "percentage", "total_amount", "registry_code", "judge_title", "judge_lastname", "judge_firstname", "year", "month", "date")
+
+#----- Assign Date type to dates
+bail$action_date <- as.Date(bail$action_date)
+details$date_of_birth <- as.Date(details$date_of_birth)
+details$arrest_date <- as.Date(details$arrest_date)
+details$complaint_date <- as.Date(details$complaint_date)
+details$disposition_date <- as.Date(details$disposition_date)
+details$filing_date <- as.Date(details$filing_date)
+details$initiation_date <- as.Date(details$initiation_date)
+
+
+
+#----- Renaming and assigning Factor type
+colnames(bail) <- c("docket_ID", "action_date", "action_type", "type_name", "percentage", "total_amount", "registry_code", "judge_title", "judge_lastname", "judge_firstname")
 bail$docket_ID <- as.factor(bail$docket_ID)
 bail$type_name <- as.factor(bail$type_name)
 bail$registry_code <- as.factor(bail$registry_code)
 bail$action_type <- as.factor(bail$action_type)
 str(bail)
 
-colnames(details) <- c("docket_ID", "gender", "race", "DOB", "arrest_date", "complaint_date", "disposition_date", "filing_date",
+colnames(details) <- c("docket_ID", "gender", "race", "date_of_birth", "arrest_date", "complaint_date", "disposition_date", "filing_date",
                        "initiation_date", "status", "court_office", "processing_status", "status_change_time", "municipality_name",
-                       "municipality_county", "judicial_districts", "court_office_types", "court_types", "representation", "DOBy", "DOBm", "DOBd",
-                       "arrest_datey", "arrest_datem", "arrest_dated", "complaint_datey", "complaint_datem", "complaint_dated", "disposition_datey",
-                       "disposition_datem", "disposition_dated", "filing_datey", "filing_datem", "filing_dated", "initiation_datey",
-                       "initiation_datem", "initiation_dated")
+                       "municipality_county", "judicial_districts", "court_office_types", "court_types", "representation")
 details$gender <- as.factor(details$gender)
 details$race <- as.factor(details$race)
 details$status <- as.factor(details$status)
@@ -77,15 +58,75 @@ dispositions$period <- as.factor(dispositions$period)
 dispositions$sentence_type <- as.factor(dispositions$sentence_type)
 str(dispositions)
 
-#Remove unnecessary or unhelpful columns
-bail <- subset(bail, select = -c(date))
-
-details <- subset(details, select = -c(DOB, arrest_date, complaint_date, disposition_date, filing_date, initiation_date,
-                                       municipality_name, municipality_county, judicial_districts, DOBm, DOBd, arrest_datey,
-                                       complaint_dated, disposition_dated, filing_dated, initiation_dated))
 
 
-#Bail total amount histogram
+#----- Remove unnecessary or unhelpful columns
+details <- subset(details, select = -c(municipality_name, municipality_county, judicial_districts))
+
+
+
+#----- Cleaning up strings/categorical variables
+
+#- Combining judge names/title in bail data set into single categorical variable
+str(bail)
+bail$judge <- paste(bail$judge_title, bail$judge_firstname, bail$judge_lastname, sep=" ")
+bail$judge <- as.factor(bail$judge)
+str(bail$judge)
+names(sort(-table(bail$judge)))
+#Among the top 20 most frequently occurring judges are blank, Arraignment Court Magistrate, Director Office of Judicial Records,
+#Trial Commissioner, District Court Administrator, District Attorney, Clerk Typist, President Judge. Many additional records
+#that are not judges
+#Isolate 4685336 records not containing "Judge"
+bail$judge[c(!grepl("Judge", bail$judge_title))]
+
+#Registry code does not appear to have any NA or missing values
+length(subset(bail$registry_code, is.na(bail$registry_code)))
+length(subset(bail$registry_code, is_empty(bail$registry_code)))
+
+#Most frequent status change time within details data set is 0001-01-01, appearing 12351 times. None are NA or missing.
+names(sort(-table(details$status_change_time)))
+length(subset(details$status_change_time, details$status_change_time == "0001-01-01"))
+length(subset(details$status_change_time, is.na(details$status_change_time)))
+length(subset(details$status_change_time, is_empty(details$status_change_time)))
+
+
+#----- Calculating intervals
+str(details)
+
+#- Difference in days between initiation date and arrest date
+date_diff <- details$initiation_date - details$arrest_date #calculate difference in days
+date_diff
+date_diff <- as.numeric(date_diff) #convert to numeric type
+date_diff <- subset(date_diff, date_diff > 0) #filter out negative or zero values
+date_diff <- subset(date_diff, date_diff < 135) #filter out outliers
+date_diff_months <- date_diff/31 #convert to months
+ggplot(data=NULL, aes(x=date_diff)) + geom_boxplot()
+ggplot(data=NULL, aes(x=date_diff)) + geom_histogram()
+ggplot(data=NULL, aes(x=date_diff_months)) + geom_boxplot()
+ggplot(data=NULL, aes(x=date_diff_months)) + geom_histogram()
+
+
+#----- Combining datasets
+str(bail)
+
+#Merge details with dispositions
+combined <- merge(details, dispositions, by.x = "docket_ID", by.y = "docket_ID")
+
+#Merge combined with ids
+combined <- merge(combined, ids, by.x="docket_ID", by.y="docket_ID")
+
+#Merge combined with bail
+combined <- merge(combined, bail, by.x="docket_ID", by.y="docket_ID")
+
+subset(combined$docket_ID, is.na(combined$defendant_ID))
+duplicated(combined$docket_ID) #This does not return TRUE for the first time a duplicate variable appears (i.e., first
+#4 items in array are "1" but item 1 in the array returns FALSE)
+
+str(combined)
+summary(combined)
+
+
+#----- Bail total amount histogram
 filt <- bail[bail$total_amount < 250000,]
 ggplot(data = filt, aes(x=total_amount)) + geom_histogram(binwidth = 10000)
 
