@@ -26,13 +26,22 @@ merged <- readRDS('~/Documents/merged_jat.Rds')
 ```
 
 ## Judge scorecard/summary
-Can we filter by judge, then show some dashboard about them??
+Can we filter by judge, then show some dashboard about them with comparisons "other judges".
+
+In the end, we could have some sort of judge search.
+
+You select 1 judge and then can filter by:
+
+- Offense (either high level by statute or search a specific term like "retail theft")
+- Defendant demographics
+- Time period
+
+We return:
 
 - Number of dockets
 - Bail information
 - Sentence information
-- Facet by time, defendant information
-- Social media or news about them?
+- Social media or news about the judge?
 
 Top 5 judges by year (number of dockets)
 ```{r}
@@ -51,85 +60,120 @@ Let's take [Rayford A. Means](https://ballotpedia.org/Rayford_A._Means) as an ex
 
 This [article](https://digital.olivesoftware.com/Olive/ODN/PhiladelphiaInquirer/shared/ShowArticle.aspx?doc=PHQP%2F2019%2F10%2F27&entity=Ar01701&sk=614449E1&mode=text#) claims that he was sentencing for longer than other judges for retail theft.
 
-```{r}
-myjudge <- "Rayford A. Means"
-```
-
-Here I have picked `r myjudge` to examine.
+Take the case of "retail theft" - there are mutliple descriptions with some sort of retail theft. These could vary a lot, but for now, take anything with "retail theft" in it. Lots of these dockets contain other crimes that might be much more severe. A quick check says that there are some felonies.
 
 ```{r}
-mydata <- filter(merged, judge==myjudge) # Only one docket per row
-
+input <- list()
+input$judge <- "Rayford A. Means"
+input$statute_title <- NULL
+input$grade <- NULL
+input$minyear <- 2010
+input$maxyear <- 2020
+input$search_term <- "retail theft"
+input$defendant_age <- NULL
+input$defendant_gender <- "Male"
+input$defendant_race <- NULL
 ```
+
+Summarize the search:
+
+```{r}
+input %>% as.data.frame() %>% pander::pander()
+```
+
+
+```{r}
+# Have not implemented all the searches, just a couple of them to illustrate
+if(is.null(input$search_term)) input$search_term <- "*"
+if(is.null(input$statute_title)) input$statute_title <- unique(unlist(merged$statute_pt1))
+  
+  
+# Modify the data based on these searches
+mydata <- merged %>% 
+  mutate(year = lubridate::year(filing_date),
+         select_judge = ifelse(judge==input$judge, T, F),
+         max_sentence_all = pmax(max_period_days_Probation,max_period_days_Confinement,
+                                 na.rm = T)   
+  )
+
+mydata$select_searchterm <- tolower(mydata$desc_main) %>% 
+  grepl(pattern = tolower(input$search_term), unlist(.))
+
+# Filter the data based on these searches
+
+mydata <- mydata %>% 
+  filter(gender == input$defendant_gender,
+         select_searchterm,
+         year >= input$minyear & year <= input$maxyear,
+         any(statute_pt1 %in% input$statute_title))
+```
+
+Total dockets from search: `r n_distinct(filter(mydata, select_judge)$docket_id)`
 
 ### Total dockets per year
 ```{r}
 mydata %>% 
-  mutate(year = lubridate::year(filing_date)) %>% 
-  ggplot(aes(x=year)) + 
-  geom_bar() + 
-  labs(title=myjudge,
+  ggplot(aes(x=year,fill=select_judge)) + 
+  geom_bar(position = "dodge") + 
+  labs(title=input$judge,
        subtitle = "Dockets per year") + 
+  theme_bw()
+```
+
+### Total dockets by max grade of any offense on that docket
+
+```{r}
+mydata %>% 
+  ggplot(aes(x=max_grade,fill=select_judge)) + 
+  geom_bar(position = "dodge") + 
+  labs(title=input$judge,
+       subtitle = "Dockets per max grade") + 
   theme_bw()
 ```
 
 ### Demographics of defendants
 ```{r}
 mydata %>% 
-  mutate(year = lubridate::year(filing_date)) %>% 
-  ggplot(aes(x=gender)) + 
-  geom_bar() + 
-  labs(title=myjudge,
+  ggplot(aes(x=gender,fill=select_judge)) + 
+  geom_bar(position = "dodge") + 
+  labs(title=input$judge,
        subtitle = "Defendant gender") + 
   theme_bw()
 ```
 
 ```{r}
 mydata %>% 
-  mutate(year = lubridate::year(filing_date)) %>% 
-  ggplot(aes(x=race)) + 
-  geom_bar() + 
-  labs(title=myjudge,
+  ggplot(aes(x=race,fill=select_judge)) + 
+  geom_bar(position = "dodge") + 
+  labs(title=input$judge,
        subtitle = "Defendant race") + 
   theme_bw()
 ```
 
 
 ### Dispositions
-One idea would be to look at the sentences that fall outside the sentencing guidelines. Do some judges do this more or less?
 ```{r}
 mydata %>% 
-  mutate(year = lubridate::year(filing_date)) %>% 
-  filter(!is.na(max_period_days_Confinement)) %>% 
-  ggplot(aes(x=max_grade, group= max_grade, y= max_period_days_Confinement)) + 
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(height=0,width=0.2) + 
-  scale_y_log10() + 
-  labs(title=myjudge,
-       subtitle = "max confinement sentences (days) by highest grade offense") + 
-  theme_bw()
+  tidyr::unnest(disposition) %>% 
+  na.omit() %>% 
+  ggplot(aes(x=disposition,fill=select_judge)) + 
+  geom_bar(position = "dodge") +
+  labs(title=input$judge,
+       subtitle = "Dispositions") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
 ```
 
-Take the case of "retail theft" - there are mutliple descriptions with some sort of retail theft. These could vary a lot, but for now, take anything with "retail theft" in it. Lots of these dockets contain other crimes that might be much more severe. A quick check says that there are some felonies.
 
 ```{r}
-merged$retail_theft <- merged$desc_main_list %>% grepl(pattern = "Retail Theft|Retail theft|retail theft",unlist(.))
-```
-
-```{r}
-merged %>% 
-  mutate(year = lubridate::year(filing_date),
-         select_judge = ifelse(judge==myjudge, T, F),
-         max_sentence_all = pmax(max_period_days_Probation,max_period_days_Confinement,
-                                 na.rm = T),
-         included_felony = ifelse(max_grade %in% c("F","F1","F2","F3"), T, F)) %>% 
-  filter(retail_theft) %>% 
+mydata %>% 
+  mutate(included_felony = ifelse(max_grade %in% c("F","F1","F2","F3"), T, F)) %>% 
   ggplot(aes(x=select_judge, group= select_judge, y= max_sentence_all)) + 
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(height=0,width=0.2, aes(color = included_felony)) + 
   # facet_wrap(~year) + 
   # scale_y_log10() + 
-  labs(title=myjudge,
+  labs(title=input$judge,
        x = "Is Rayford A. Means the judge?",
        subtitle = "max sentences (days confinement or probation) for retail theft") + 
   theme_bw()
@@ -137,17 +181,28 @@ merged %>%
 
 ### Bail
 
+
 ```{r}
 mydata %>% 
-  mutate(year = lubridate::year(filing_date)) %>% 
-  filter(!is.na(max_bail_amount), max_bail_amount>0) %>% 
-  ggplot(aes(x=max_grade, group= max_grade, y= max_bail_amount)) + 
+  ggplot(aes(x=any_monetary_bail,fill=select_judge)) + 
+  geom_bar(position = "dodge") +
+  labs(title=input$judge,
+       subtitle = "Bail") + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
+```
+
+
+```{r}
+mydata %>% 
+  filter(!is.na(initial_set_bail_amount), initial_set_bail_amount>0) %>% 
+  ggplot(aes(x=max_grade, group= max_grade, y= initial_set_bail_amount)) + 
   geom_boxplot(outlier.shape = NA) +
-  geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color = year>2017)) + 
+  geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color=select_judge)) + 
   scale_y_log10() +
-  labs(title=myjudge,
-       subtitle = "max bail total amount by highest grade offense",
-       caption = "Note that this excludes $0 max bail") + 
+  labs(title=input$judge,
+       subtitle = "Initial bail total amount by highest grade offense",
+       caption = "Note that this excludes $0 bail") + 
   theme_bw()
 ```
 
@@ -156,17 +211,17 @@ mydata %>%
 How many dockets had no bail amount > 0 ? (Could be ROR or nonmonetary)
 
 ```{r}
-merged %>% 
+mydata %>% 
   filter(max_bail_amount == 0) %>% 
   count(max_grade, sort=T) %>% 
   pander::pander()
 ```
 
 
-The minimum bail per docket ranges from 1 dollar to 100,100,000 dollars
+The minimum bail per docket ranges from 1 dollar to 100,100,000 dollars in the entire dataset.
 
 ```{r}
-merged %>% 
+mydata %>% 
   filter(min_bail_amount>0) %>% 
 ggplot( aes(x=max_grade, y= min_bail_amount))+
   geom_boxplot(outlier.shape = NA) +
@@ -178,20 +233,6 @@ ggplot( aes(x=max_grade, y= min_bail_amount))+
 
 ```
 
-We could imagine a dashboard to select certain years or grades. For example, here we select dockets with "S" grade as the max grade and plot by year (filing date).
-```{r}
-merged %>% 
-  filter(min_bail_amount>0, max_grade == "S") %>% 
-  mutate(year = lubridate::year(filing_date)) %>% 
-ggplot( aes(x=year, group = year, y= min_bail_amount))+
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(height=0, width=0.15, alpha=0.5) +
-  scale_y_log10() +
-  labs(title = "Min bail amount when >$0",
-       subtitle = "Max grade of S") + 
-  theme_bw()
-
-```
 
 ```{r}
 sessionInfo()

@@ -4,8 +4,13 @@
 
 #' Aggregate bail dataset
 #' 
-#' This needs some work. Just an idea - dates are an issue.
-#' We probably want to aggregrate by crime and not docket id
+#' There are many rows per docket in the bail data
+#' This will summarize per docket whether there was monetary bail (Monetary, Unsecured) 
+#' or not (ROR, Nonmonetary, Nominal)
+#' This function will also summarize the initial set bail amount and percent, 
+#' the overall min/max total_amounts, and the earliest/latest action dates.
+#' 
+#' Note that review of the dataset found that rarely Nonmonetary type have total_amount>0 (n=2)
 #'
 #' @param data 
 #'
@@ -15,14 +20,18 @@
 
 aggregate_bails <- function(data){
   data %>% 
-    distinct(docket_id, total_amount, 
+    distinct(docket_id, total_amount, percentage,
              type_name, action_type_name, action_date, .keep_all = TRUE) %>% 
 
     group_by(docket_id) %>% 
-    summarise(min_bail_amount = min(total_amount, na.rm=T),
+    arrange(action_date) %>% 
+    summarise(any_monetary_bail = ifelse(any(type_name %in% c("Monetary","Unsecured")),T,F),
+              min_bail_amount = min(total_amount, na.rm=T),
               max_bail_amount = max(total_amount, na.rm=T),
+              initial_set_bail_amount = total_amount[1],
+              initial_set_bail_percent = percentage[1],
               type_name_list = list(type_name),
-              percentage_list = list(percentage),
+              # percentage_list = list(percentage),
               first_bail_action_date = min(action_date, na.rm = T),
               last_bail_action_date = max(action_date, na.rm = T),
               action_type_list = list(action_type_name)) %>% 
@@ -30,26 +39,7 @@ aggregate_bails <- function(data){
 }
 
 
-
-
-#' Aggregate the Offenses and Dispositions dataset
-#' 
-#' Converts the dataset to a one row per docket_id:judge
-#' Not all offenses have a corresponding sentence
-#' There are multiple rows per offense when there are mult. sentences 
-#' (i.e. confinement and probation)
-#' This may not be what we want but for the purpose of illustration and 
-#' moving fast, this is what I did.
-#' We end up with a summarization of all the information as nested lists.
-#' We also spread to wide to add columns for min, max periods from each sentence type
-#' (Confinement, Probation). When there were mutliple of these sentences, then took max value.
-#'
-#' @param data Offenses and Dispositions data.frame from the original dataset after adding the cleaned desc_main and min_period_days, max_period_days variables.
-#'
-#' @return data.frame with min_grade and max_grade columns and nested lists
-#'
-
-# Don't like nas or returning -Inf
+#' Don't like nas or returning -Inf
 max_nona <- function(x){
   if (all(is.na(x))) {
     NA
@@ -59,6 +49,22 @@ max_nona <- function(x){
 }
 
 
+
+#' Aggregate the Offenses and Dispositions dataset
+#' 
+#' Converts the dataset to a one row per docket_id:judge
+#' #' This may not be what we want but for the purpose of illustration and 
+#' moving fast, this is what I did.
+#' Not all offenses have a corresponding sentence.
+#' We end up with a summarization of all the information as nested lists.
+#' We also spread to wide to add columns for min, max periods from each sentence type
+#' (Confinement, Probation). When there were mutliple of these sentences, then took max value.
+#' NOTE: Need to understand better way to combine sentences! ADD them or MAX
+#'
+#' @param data Offenses and Dispositions data.frame from the original dataset after adding the cleaned desc_main and min_period_days, max_period_days variables. If the statute data is added, lists those too.
+#'
+#' @return data.frame with min_grade and max_grade columns and nested lists
+#'
 aggregate_od <- function(data){
   grade_levels <- c("IC","S","S3","S2","S1",
                     "M","M3","M2","M1",
@@ -76,11 +82,16 @@ aggregate_od <- function(data){
     group_by(docket_id) %>% 
     arrange(grade) %>% 
     summarise(min_grade = grade[1],
-              max_grade = grade[n()],
-              desc_main_list = list(unique(desc_main)),
-              sentence_type_list = list(unique(sentence_type)),
-              disposition_list = list(unique(disposition)),
-              disposition_method_list = list(unique(na.omit(disposition_method)))) %>% 
+              max_grade = grade[n()]) %>% 
+    ungroup() 
+  
+  summarise_cols <- intersect(names(data), c("desc_main", "sentence_type", "disposition", 
+                                             "disposition_method", "statute_pt1", 
+                                             "statute_pt2", "statute_pt3"))
+  other_info <- data %>% 
+    distinct(across(all_of(c("docket_id",summarise_cols)))) %>% 
+    group_by(docket_id) %>% 
+    summarise(across(summarise_cols, ~list(unique(na.omit(.))))) %>% 
     ungroup() 
   
   judges <- data %>% 
@@ -88,11 +99,20 @@ aggregate_od <- function(data){
     rename(judge = disposing_authority__document_name) %>% 
     filter(!is.na(judge))
   
-  merge(judges, merge(widened, grades, by = "docket_id", all.x=T, all.y=T), 
-        by = "docket_id", all.x=T, all.y=T)
+  merge(merge(judges, merge(widened, grades, by = "docket_id", all.x=T, all.y=T), 
+        by = "docket_id", all.x=T, all.y=T),other_info, all.x=T, all.y=T)
   
 }
 
+
+#' Augment Offenses and Dispositions data to add time internals and ages
+#'
+#' @param data Offenses and Dispositions data.frame from the original dataset
+#' @return  modified data.frame with new variables (age_at_arrest)
+#'
+augment_dispositions <- function(data){
+  
+}
 
 #' @example
 #' extract_days(x = "2 weeks and 1 day")

@@ -80,10 +80,28 @@ bailcols <- readr::cols(
 bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail.csv',
                         col_types = bailcols)
 
+# There is a statutes.csv file in the repo
+statute_map <- readr::read_csv(here::here('data/statutes.csv'))
+
 
 # Clean files and summarize ----
+
+# statute file has some interesting characters, let's remove those and split into parts
+statute_clean <- statute_map %>% 
+  tidyr::separate(statute_name, 
+                  into=c("statute_pt1","statute_pt2","statute_pt3"), 
+                  sep= " § | §§ | ยง | ยงยง ", fill = "right") %>% 
+  distinct(statute_description, .keep_all = T) # note this removes some rows
+  # distinct removes some 1:many for statute_description to statute, but they are super similar
+  # e.g. "Child Pornograpy" maps to both 18	6312	D and 18	6312	D1
+
+# We will merge this into offenses/dispos data by statute_description - so make sure that is 1:1
+# nrow(statute_map) == n_distinct(statute_map$statute_description)
+
+
 od_clean <- clean_periods(od)
 od_clean <- clean_descriptions(od_clean)
+od_clean <- left_join(od_clean, statute_clean)
 # Because we care about JUDGES. I will go ahead and remove all the dockets w/o a disposition
 # These have no judges
 od_clean <- od_clean %>% 
@@ -96,12 +114,13 @@ bail_clean <- aggregate_bails(bail)
 # We could add functions to "augment" the data:
 # Add additional variables (e.g., time differences)
 
+
 # Merge into one file (one docket:judge combo per row) ----
 # Note: It probably does not make sense to have one docket per row
-# Here there can be multiple rows per docket if there were multiple judges (rare)
+# Here there can be multiple rows per docket if there were multiple judges on the disposition (rare)
 # not all dockets will be included here - some filtered out
-merged <- left_join(od_agg, bail_clean,by = "docket_id") %>% 
-  left_join(ddd,by = "docket_id")
+merged <- left_join(od_agg, bail_clean, by = "docket_id") %>% 
+  left_join(ddd, by = "docket_id")
 
 # Example docket with 3 judges: 	14284
 # Example docket with 3 dispositions: 5134
