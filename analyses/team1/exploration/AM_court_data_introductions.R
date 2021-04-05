@@ -54,7 +54,7 @@ offenses %>% filter(description != statute_description) %>% select(c("docket_id"
 
 ##discard statute description and split description into main offense and details, get rid of extraneous columns
 offenses_clean <- offenses %>% separate(description, into = c("Main_Offense","Details"), "-", remove = F, extra = "merge", fill = "right") %>% 
-  mutate(Main_Offense = trimws(Main_Offense), Details = trimws(Details)) %>% select(-statute_description) %>% 
+  mutate(Main_Offense = trimws(Main_Offense), Details = trimws(Details)) %>% #select(-statute_description) %>% 
   ##remove extraneous columns 
   select(-c(sequence_number, disposing_authority__first_name, 
                                disposing_authority__middle_name, disposing_authority__last_name)) %>% 
@@ -93,4 +93,40 @@ docket.info_clean <- docket.info_clean %>% select(-c(municipality__name, municip
 
 
 ##there are a lot of different entries for a docket ID.......lots of registry entries, different judges, how important is this? 
-                                       
+                              
+
+
+
+#####################################
+####Bring in Statutes Annotations####
+#####################################
+
+prefix <- "D://Dropbox (SBG)/"
+# There is a statutes.csv file in the repo
+statute_map <- readr::read_csv(paste0(prefix,'2021_datathon/data/statutes.csv'))
+# Clean files and summarize ----
+# statute file has some interesting characters, let's remove those and split into parts
+statute_map <- statute_map %>% 
+  tidyr::separate(statute_name, 
+                  into=c("statute_pt1","statute_pt2","statute_pt3"), 
+                  sep= " § | §§ | ?????? | ???????????? ", fill = "right",remove = FALSE) %>% 
+  distinct(statute_description, .keep_all = T) # note this removes some rows
+# We will merge this into offenses/dispos data by statute_description - so make sure that is 1:1
+# nrow(statute_map) == n_distinct(statute_map$statute_description)
+# There were some 1:many for statute_description to statute, but they are super similar
+# e.g. "Child Pornograpy" maps to both 18	6312	D and 18	6312	D1
+
+
+statute_map <- statute_map %>% mutate(Chapter = substr(statute_pt2,1,2)) %>% relocate(Chapter, .before = statute_pt2)
+statute_map <- statute_map %>% mutate(Title.Chapter = paste(statute_pt1,Chapter, sep = "-")) %>% relocate(Title.Chapter, .before = statute_pt2)
+
+statute_map %>% select(statute_name, statute_pt1, Chapter, Title.Chapter) %>% distinct() %>% arrange(Chapter) %>% arrange(statute_pt1) %>% head()
+
+statute.codes <- xlsx::read.xlsx(paste0(prefix,'2021_datathon/analyses/team1/exploration/Statute_Codes.xlsx'), sheetIndex = 1)
+
+statute_map_codes <- left_join(statute_map, statute.codes)
+
+
+
+###join mapped statute codes to descriptions in offenses df
+offenses_coded <- full_join(statute_map_codes,offenses_clean)
