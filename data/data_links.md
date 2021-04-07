@@ -53,6 +53,27 @@ https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v
 https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2020.csv
 
 
+### Offenses and disposition info (v3)
+
+Add credit for time served
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3.csv
+
+By two year periods:
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2010_2011.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2012_2013.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2014_2015.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2016_2017.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2018_2019.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2020.csv
+
+
 ### Defendant and docket info
 
 All years:
