@@ -10,8 +10,6 @@ knitr::opts_chunk$set(echo = TRUE, results = "asis")
 ```
 
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
-library(gtsummary)
-library(readr)
 library(ggplot2)
 library(dplyr)
 ```
@@ -105,7 +103,7 @@ mydata <- mydata %>%
   filter(gender == input$defendant_gender,
          select_searchterm,
          year >= input$minyear & year <= input$maxyear,
-         any(statute_pt1 %in% input$statute_title))
+         any(statute_title %in% input$statute_title))
 ```
 
 Total dockets from search: `r n_distinct(filter(mydata, select_judge)$docket_id)`
@@ -181,29 +179,30 @@ mydata %>%
 
 ### Bail
 
+Note that the judges for bail are different than the judges for dispositions!!
 
 ```{r}
-mydata %>% 
-  ggplot(aes(x=any_monetary_bail,fill=select_judge)) + 
-  geom_bar(position = "dodge") +
-  labs(title=input$judge,
-       subtitle = "Bail") + 
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
+# mydata %>% 
+#   ggplot(aes(x=any_monetary_bail,fill=select_judge)) + 
+#   geom_bar(position = "dodge") +
+#   labs(title=input$judge,
+#        subtitle = "Bail") + 
+#   theme_bw() + 
+#   theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
 ```
 
 
 ```{r}
-mydata %>% 
-  filter(!is.na(initial_set_bail_amount), initial_set_bail_amount>0) %>% 
-  ggplot(aes(x=max_grade, group= max_grade, y= initial_set_bail_amount)) + 
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color=select_judge)) + 
-  scale_y_log10() +
-  labs(title=input$judge,
-       subtitle = "Initial bail total amount by highest grade offense",
-       caption = "Note that this excludes $0 bail") + 
-  theme_bw()
+# mydata %>% 
+#   filter(!is.na(initial_set_bail_amount), initial_set_bail_amount>0) %>% 
+#   ggplot(aes(x=max_grade, group= max_grade, y= initial_set_bail_amount)) + 
+#   geom_boxplot(outlier.shape = NA) +
+#   geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color=select_judge)) + 
+#   scale_y_log10() +
+#   labs(title=input$judge,
+#        subtitle = "Initial bail total amount by highest grade offense",
+#        caption = "Note that this excludes $0 bail") + 
+#   theme_bw()
 ```
 
 ## Other ideas

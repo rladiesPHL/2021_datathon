@@ -85,7 +85,7 @@ aggregate_od <- function(data){
               max_grade = grade[n()]) %>% 
     ungroup() 
   
-  summarise_cols <- intersect(names(data), c("desc_main", "sentence_type", "disposition", 
+  summarise_cols <- intersect(names(data), c("desc_main","description", "sentence_type", "disposition", 
                                              "disposition_method", "statute_pt1", 
                                              "statute_pt2", "statute_pt3"))
   other_info <- data %>% 
