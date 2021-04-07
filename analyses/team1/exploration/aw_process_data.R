@@ -81,31 +81,24 @@ bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datatho
                         col_types = bailcols)
 
 # There is a statutes.csv file in the repo - NOT NEEDED IF USING V3 DATA
-statute_map <- readr::read_csv(here::here('data/statutes.csv'))
+# statute_map <- readr::read_csv(here::here('data/statutes.csv'))
 
 # Alison created a file to map the statutes
 statute_codes <- openxlsx::read.xlsx(here::here('analyses/team1/Statute_Codes.xlsx'))
 
 # Clean files and summarize ----
 
-# statute file has some interesting characters, let's remove those and split into parts
-statute_clean <- statute_map %>% 
+# statute_name has some interesting characters, let's remove those and split into parts
+od_clean <- od %>% 
   tidyr::separate(statute_name, 
                   into=c("statute_title","statute_chapter","statute_pt3"), 
                   sep= " § | §§ | ยง | ยงยง ", fill = "right") %>% 
-  distinct(statute_description, .keep_all = T) %>% 
-  # note: above distinct removes some 1:many for statute_description to statute, but they are super similar
-  # e.g. "Child Pornograpy" maps to both 18	6312	D and 18	6312	D1
   mutate(Title.Chapter = paste(statute_title, # create for merge with statute_codes
                                stringr::str_trunc(statute_chapter, 2, ellipsis = ""), sep="-")) %>% 
   dplyr::left_join(statute_codes, by = "Title.Chapter")
-# We will merge this statute_clean into offenses/dispos data by statute_description
-# so make sure that is 1:1
-# nrow(statute_clean) == n_distinct(statute_clean$statute_description)
-
 
 od_clean <- clean_periods(od)
-od_clean <- clean_descriptions(od_clean)
+# od_clean <- clean_descriptions(od_clean) #didn't need this now with statute codes
 od_clean <- left_join(od_clean, statute_clean)
 # Because we care about JUDGES. I will go ahead and remove all the dockets w/o a disposition
 # These have no judges

@@ -20,7 +20,9 @@
 
 aggregate_bails <- function(data){
   data %>% 
-    distinct(docket_id, total_amount, percentage,
+    rename(bail_judge_title = participant_name__title) %>% 
+    mutate(bail_judge = paste(participant_name__first_name, participant_name__last_name)) %>% 
+    distinct(docket_id, total_amount, percentage, bail_judge_title,bail_judge,
              type_name, action_type_name, action_date, .keep_all = TRUE) %>% 
 
     group_by(docket_id) %>% 
@@ -31,6 +33,8 @@ aggregate_bails <- function(data){
               initial_set_bail_amount = total_amount[1],
               initial_set_bail_percent = percentage[1],
               type_name_list = list(type_name),
+              initial_bail_judge = bail_judge[1],
+              bail_judge_list = list(unique(bail_judge)),
               # percentage_list = list(percentage),
               first_bail_action_date = min(action_date, na.rm = T),
               last_bail_action_date = max(action_date, na.rm = T),
@@ -61,7 +65,7 @@ max_nona <- function(x){
 #' (Confinement, Probation). When there were mutliple of these sentences, then took max value.
 #' NOTE: Need to understand better way to combine sentences! ADD them or MAX
 #'
-#' @param data Offenses and Dispositions data.frame from the original dataset after adding the cleaned desc_main and min_period_days, max_period_days variables. If the statute data is added, lists those too.
+#' @param data Offenses and Dispositions data.frame from the original dataset after adding the cleaned min_period_days, max_period_days variables. If the statute data is added, lists those too.
 #'
 #' @return data.frame with min_grade and max_grade columns and nested lists
 #'
@@ -86,8 +90,8 @@ aggregate_od <- function(data){
     ungroup() 
   
   summarise_cols <- intersect(names(data), c("desc_main","description", "sentence_type", "disposition", 
-                                             "disposition_method", "statute_pt1", 
-                                             "statute_pt2", "statute_pt3"))
+                                             "disposition_method", "statute_title", 
+                                             "statute_chapter", "Title_Description","Chapter_Description"))
   other_info <- data %>% 
     distinct(across(all_of(c("docket_id",summarise_cols)))) %>% 
     group_by(docket_id) %>% 
