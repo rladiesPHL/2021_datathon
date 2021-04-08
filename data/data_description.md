@@ -1,20 +1,20 @@
 ## Context
 
-**Municipal Court**: 
+**Municipal Court**:
 
 - Municipal court is the place where lower-level crimes are adjudicated in the City of Philadelphia. Cases that involve only misdemeanor charges are adjudicated entirely in Municipal court, and then the defendant has the option to appeal the decision to the Court of Common Pleas. Cases that involve felonies start in Municipal Court, where the judge makes an initial determination of whether the Commonwealth has shown probable cause that the defendant committed the crimes. If so, the charges are "held for court" and then move on to the Court of Common Pleas.
 
-**Court of Common Pleas?**:
+**Court of Common Pleas**:
 
-- The Court of Common Pleas is the primary trial court in each county in Pennsylvania, including Philadelphia. Criminal cases that involve felonies are adjudicated in the court of common pleas, in addition to appeals from municipal court trials. 
+- The Court of Common Pleas is the primary trial court in each county in Pennsylvania, including Philadelphia. Criminal cases that involve felonies are adjudicated in the court of common pleas, in addition to appeals from municipal court trials.
 
 **Court Docket**:
 
-- A court docket contains information about a single criminal case that was initiated with a single charging document and usually relates to a single incident, even if it involves multiple criminal charges. It includes a list of hearings and filings in the case and shows the outcome and sentence for each charge. 
+- A court docket contains information about a single criminal case that was initiated with a single charging document and usually relates to a single incident, even if it involves multiple criminal charges. It includes a list of hearings and filings in the case and shows the outcome and sentence for each charge.
 
 **Court Summary**:
 
-- A court summary summarizes the criminal record of a particular defendant. It shows the charges and outcome, where applicable, for each of that defendant's cases. Cases that were in Municipal court and then hold for court and transferred to Common Pleas Court will show twice, once for each court. The Court Summary also includes some demographic information about the defendant. 
+- A court summary summarizes the criminal record of a particular defendant. It shows the charges and outcome, where applicable, for each of that defendant's cases. Cases that were in Municipal court and then hold for court and transferred to Common Pleas Court will show twice, once for each court. The Court Summary also includes some demographic information about the defendant.
 
 **Crime classifications**:
 
@@ -65,7 +65,7 @@ Note: there is one giant .csv with the data for all years, as well as smaller .c
 
 ## offenses_dispositions.csv
 
-This dataset provides information on the offenses on any given docket, and the dispositions associated with each sentence. One docket can include one or more offenses, of which one or more can receive a disposition (ie, a decision). The disposition can also include a sentence type, a sentence duration, and a minimum and maximum sentence duration. 
+This dataset provides information on the offenses on any given docket, and the dispositions associated with each sentence. One docket can include one or more offenses, of which one or more can receive a disposition (ie, a decision). The disposition can also include a sentence type, a sentence duration, and a minimum and maximum sentence duration.
 
 Note: there is one giant .csv with the data for all years, as well as smaller .csvs with short time spans.  All can be downloaded at [data_links.md](data_links.md)
 
@@ -90,7 +90,7 @@ Note: there is one giant .csv with the data for all years, as well as smaller .c
 
 ## bail.csv
 
-This dataset includes information on the [bail](#bail) history of a docket. Bail is set per docket (not per individual offense). There are multiple actions that occur in relation to bail, e.g. bail is first set, bail is increased/decreased, bail type is changed, or revoked, etc. 
+This dataset includes information on the [bail](#bail) history of a docket. Bail is set per docket (not per individual offense). There are multiple actions that occur in relation to bail, e.g. bail is first set, bail is increased/decreased, bail type is changed, or revoked, etc.
 
 Note: there is one giant .csv with the data for all years, as well as smaller .csvs with short time spans.  All can be downloaded at [data_links.md](data_links.md)
 
@@ -106,6 +106,25 @@ Note: there is one giant .csv with the data for all years, as well as smaller .c
 | participant_name__title | title of actors (e.g. "Judge", "President Judge", "District Attorney", etc.) |
 | participant_name__last_name | last name of actor |
 | participant_name__first_name | We first name of actor |
+
+## defendant_docket_ids.csv
+
+In order to track whether a defendant is a multiple offender (in order to help explain severity / leniency of bail and/or sentencing), we created a "defendant_id" so you can look up defendants and their dockets:
+
+| Variable | Description |
+| ----------------| ---------------------------------------- |
+| defendant_id | Unique identifier of defendant |
+| docket_id | Unique identifier of docket |
+
+## statutes.csv
+
+Useful for looking up laws or grouping them by legal domain.
+
+| Variable | Description |
+| ----------------| ---------------------------------------- |
+| statute_name | Legal code location / name  |
+| statute_description | description of the statute (same statute_description from offenses_dispositions). |
+
 
 # Terminology
 
@@ -130,7 +149,7 @@ In Pennsylvania, all crimes are grading as a summary (S), misdemeanor (M), or a 
 
 In summary data, there are 6 discrete values associated with offense grade, under column name `grade_type`
 
-- **M**: misdemeanor 
+- **M**: misdemeanor
 - **F**:felony
 - **S**: summary; minor infractions. Examples of these offenses are: disorderly conduct, public drunkenness, harassment, retail theft (first offense), underage drinking
 - **C**: ???
@@ -143,9 +162,9 @@ In summary data, there are 6 discrete values associated with offense grade, unde
 
 ### bail types
 
-7 discrete values such as "ROR" and "Monetary". 
+7 discrete values such as "ROR" and "Monetary".
 
-Standard 7 bail types listed [here](https://herbertbailbonds.com/7-types-bail-bonds-obtained/) 
+Standard 7 bail types listed [here](https://herbertbailbonds.com/7-types-bail-bonds-obtained/)
 - **ROR**: “released on own recognizance”, which means that a defendant must simply promise to appear at all future court dates
 - **Surety Bonds**
 - **Cash Bail Bonds**
