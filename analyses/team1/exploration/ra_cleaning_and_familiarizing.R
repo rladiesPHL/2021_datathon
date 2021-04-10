@@ -15,6 +15,7 @@ details$complaint_date <- as.Date(details$complaint_date)
 details$disposition_date <- as.Date(details$disposition_date)
 details$filing_date <- as.Date(details$filing_date)
 details$initiation_date <- as.Date(details$initiation_date)
+details$status_change_time <- as.Date(details$status_change_time)
 
 
 
@@ -64,20 +65,12 @@ str(dispositions)
 details <- subset(details, select = -c(municipality_name, municipality_county, judicial_districts))
 
 
-
 #----- Cleaning up strings/categorical variables
 
-#- Combining judge names/title in bail data set into single categorical variable
-str(bail)
-bail$judge <- paste(bail$judge_title, bail$judge_firstname, bail$judge_lastname, sep=" ")
-bail$judge <- as.factor(bail$judge)
-str(bail$judge)
-names(sort(-table(bail$judge)))
+names(sort(-table(bail$judge_lastname)))
 #Among the top 20 most frequently occurring judges are blank, Arraignment Court Magistrate, Director Office of Judicial Records,
 #Trial Commissioner, District Court Administrator, District Attorney, Clerk Typist, President Judge. Many additional records
 #that are not judges
-#Isolate 4685336 records not containing "Judge"
-bail$judge[c(!grepl("Judge", bail$judge_title))]
 
 #Registry code does not appear to have any NA or missing values
 length(subset(bail$registry_code, is.na(bail$registry_code)))
@@ -88,22 +81,6 @@ names(sort(-table(details$status_change_time)))
 length(subset(details$status_change_time, details$status_change_time == "0001-01-01"))
 length(subset(details$status_change_time, is.na(details$status_change_time)))
 length(subset(details$status_change_time, is_empty(details$status_change_time)))
-
-
-#----- Calculating intervals
-str(details)
-
-#- Difference in days between initiation date and arrest date
-date_diff <- details$initiation_date - details$arrest_date #calculate difference in days
-date_diff
-date_diff <- as.numeric(date_diff) #convert to numeric type
-date_diff <- subset(date_diff, date_diff > 0) #filter out negative or zero values
-date_diff <- subset(date_diff, date_diff < 135) #filter out outliers
-date_diff_months <- date_diff/31 #convert to months
-ggplot(data=NULL, aes(x=date_diff)) + geom_boxplot()
-ggplot(data=NULL, aes(x=date_diff)) + geom_histogram()
-ggplot(data=NULL, aes(x=date_diff_months)) + geom_boxplot()
-ggplot(data=NULL, aes(x=date_diff_months)) + geom_histogram()
 
 
 #----- Combining datasets
@@ -118,17 +95,43 @@ combined <- merge(combined, ids, by.x="docket_ID", by.y="docket_ID")
 #Merge combined with bail
 combined <- merge(combined, bail, by.x="docket_ID", by.y="docket_ID")
 
-subset(combined$docket_ID, is.na(combined$defendant_ID))
-duplicated(combined$docket_ID) #This does not return TRUE for the first time a duplicate variable appears (i.e., first
-#4 items in array are "1" but item 1 in the array returns FALSE)
-
 str(combined)
 summary(combined)
 
 
-#----- Bail total amount histogram
-filt <- bail[bail$total_amount < 250000,]
-ggplot(data = filt, aes(x=total_amount)) + geom_histogram(binwidth = 10000)
+#----- Calculating intervals
+str(details)
 
-ggplot(data=details, aes(x=filing_datey)) + geom_histogram(binwidth = 1) + xlim(2009,2021)
-                                                                              
+#- View dockets where disposition equals status_change_time. Unsure when/why these dates do or don't match
+combined %>%
+  filter(!is.na(disposition_date) & !is.na(status_change_time),
+         disposition_date == status_change_time)
+
+#- Arrange data frame from most recent to least recent status_change_time. Add column with arrest-to-disposition time interval
+combined <- combined %>%
+  arrange(desc(status_change_time)) %>%
+  mutate(
+    time_to_disposition = disposition_date - arrest_date
+  )
+
+str(combined)
+
+#- Create new data frame with just the first record per docket_ID
+no_duplicates <- combined[!duplicated(combined$docket_ID), ]
+
+summary(as.integer(no_duplicates$time_to_disposition), na.rm=T) #Median time to disposition is 123 days, mean is 231.9 days
+IQR(as.integer(no_duplicates$time_to_disposition), na.rm=T) #Outliers start above 363
+
+#- Visualize time to disposition with suspected without suspected outliers
+no_duplicates %>%
+  filter(time_to_disposition <= 363) %>%
+  ggplot() + geom_histogram(aes(x=as.integer(time_to_disposition)), binwidth=30)
+
+
+
+#----- Bail Change Exploration
+bail %>%
+  arrange(docket_ID) %>%
+  group_by(docket_ID) %>%
+  filter(docket_ID != docket_ID) %>%
+  select(total_amount)
