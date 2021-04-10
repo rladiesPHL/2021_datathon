@@ -18,8 +18,10 @@ library(dplyr)
 # Set your working directory there
 source('analyses/team1/exploration/aw_functions.R')
 
-
+#
 # Read in the data from internet - define readr cols for parsing failures ----
+#
+
 odcols <- cols(
   docket_id = col_double(),
   description = col_character(),
@@ -85,39 +87,43 @@ bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datatho
 
 # Alison created a file to map the statutes
 statute_codes <- openxlsx::read.xlsx(here::here('analyses/team1/Statute_Codes.xlsx'))
+statute_codes <- tidyr::separate(statute_codes, col=Title.Chapter, 
+                                 into=c("statute_title","statute_chapter"),sep="-")
+# Will merge in only the title descriptions, so shorten to just that
+statute_codes <- select(statute_codes, statute_title, title_description = Title_Description) %>% unique()
 
+#
 # Clean files and summarize ----
+#
 
-# statute_name has some interesting characters, let's remove those and split into parts
+# Because we care about judges, I decided to remove all the dockets w/o a disposition
+# Note that there are still offenses here with NA disposition
+# These have no judges - reduces data size a lot
 od_clean <- od %>% 
-  tidyr::separate(statute_name, 
-                  into=c("statute_title","statute_chapter","statute_pt3"), 
-                  sep= " § | §§ | ยง | ยงยง ", fill = "right") %>% 
-  mutate(Title.Chapter = paste(statute_title, # create for merge with statute_codes
-                               stringr::str_trunc(statute_chapter, 2, ellipsis = ""), sep="-")) %>% 
-  dplyr::left_join(statute_codes, by = "Title.Chapter")
-
-od_clean <- clean_periods(od)
-# od_clean <- clean_descriptions(od_clean) #didn't need this now with statute codes
-od_clean <- left_join(od_clean, statute_clean)
-# Because we care about JUDGES. I will go ahead and remove all the dockets w/o a disposition
-# These have no judges
-od_clean <- od_clean %>% 
   group_by(docket_id) %>% 
   mutate(no_disposition = all(is.na(disposition))) %>% 
-  ungroup() %>% filter(no_disposition==FALSE)
+  ungroup() %>% 
+  filter(no_disposition==FALSE)
 
-od_agg <- aggregate_od(od_clean)
-bail_clean <- aggregate_bails(bail)
-# We could add functions to "augment" the data:
-# Add additional variables (e.g., time differences)
+# statute_name has some interesting characters, let's remove those and split into parts
+od_clean <- od_clean %>% 
+  tidyr::separate(statute_name, 
+                  into=c("statute_title","statute_section","statute_pt3"), 
+                  sep= " § | §§ | ยง | ยงยง ", fill = "right") %>% 
+  dplyr::left_join(statute_codes, 
+                   by = "statute_title")
+
+# clean the sentencing fields
+od_clean <- clean_periods(od_clean)
 
 
 # Merge into one file (one docket:judge combo per row) ----
 # Note: It probably does not make sense to have one docket per row
 # Here there can be multiple rows per docket if there were multiple judges on the disposition (rare)
 # not all dockets will be included here - some filtered out
-merged <- left_join(od_agg, bail_clean, by = "docket_id") %>% 
+od_agg <- aggregate_od(od_clean)
+bail_agg <- aggregate_bails(bail)
+merged <- left_join(od_agg, bail_agg, by = "docket_id") %>% 
   left_join(ddd, by = "docket_id")
 
 # Example docket with 3 judges: 	14284
@@ -127,6 +133,11 @@ merged <- left_join(od_agg, bail_clean, by = "docket_id") %>%
 # Save out: -----
 LOCAL_LOCATION <- '~/Documents/'
 saveRDS(merged, paste0(LOCAL_LOCATION, "merged_jat.Rds"))
+# Probably better to save separate
+# Minimal versions for dashboard 
+saveRDS(od_clean, paste0(LOCAL_LOCATION, "od_clean.Rds"))
+saveRDS(ddd, paste0(LOCAL_LOCATION, "ddd.Rds"))
+
 
 # Information
 sessionInfo()

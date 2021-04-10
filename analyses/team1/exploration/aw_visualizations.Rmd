@@ -1,5 +1,5 @@
 ---
-title: "Some initial exploration"
+title: "Visualizations from JAT dataset"
 author: "Alice"
 date: "3/16/2021"
 output: html_document
@@ -11,17 +11,190 @@ knitr::opts_chunk$set(echo = TRUE, results = "asis")
 
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
 library(ggplot2)
+library(viridis)
 library(dplyr)
 ```
 
 
-# Summary
-This is just a stream of consciousness exploration of the data and debugging all the data manipulations.
-I used the data I had already manipulated and saved locally in the 'aw_process_data.R' script.
 
 ```{r message=FALSE}
 merged <- readRDS('~/Documents/merged_jat.Rds')
+od_clean <- readRDS('~/Documents/od_clean.Rds')
+ddd <- readRDS('~/Documents/ddd.Rds')
 ```
+
+# Questions from April 7 team meeting
+
+1. There must be some sentencing guidelines. Do judges follow them or not? (Alice)
+2. Trial duration (time between arrest and disposition) (Alice)
+3. Were they waiting in jail? Did they post bail? (Alice)
+
+I used the data I had already manipulated and saved locally in the 'aw_process_data.R' script.
+
+## Do judges follow sentencing guidelines?
+
+I selected some top statutes. [PA law sentencing guidelines](https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/204/chapter303/chap303toc.html&d=reduce) are very complicated. So it would be a piece of future work to create some code that would take in the data from a docket and algorithmically produce the guideline. I am guessing judges already have that.
+
+Then I selected an example judge and calculated the "typical" sentence by summarizing all the other judges. For a dashboard - we could pre-calculate all this information and then the input could be to select the judge and the offense.
+
+### Most common statutes in the data
+
+I decided to work with these common offenses as an illustration.
+
+- M2 Simple Assault 
+- M2 Recklessly Endangering Another Person  
+- M Int Poss Contr Subst By Per Not Reg   
+
+```{r}
+od_clean %>% count(grade, description, sort=T) %>% 
+  head() %>% pander::pander()
+```
+
+There are a couple of ways to work on the data
+
+- Consider only offenses on a docket with a disposition (many rows from a docket do not have a disposition)
+- Consider the docket holistically - if the offense occurs on the docket, but doesn't have a disposition, still consider that as an occurence of the offense and look at the overall docket
+
+For this purpose, I will try the first one - and look for only sentences specifically associated with that offense of interest. I could summarize the other offenses on the docket as a second variable to consider.
+
+Note: This analysis does not include sentences with time served.
+
+### Choose some judges for illustration
+
+
+What are the most common judges for the selected offenses?
+```{r}
+od_clean %>% 
+  mutate(grade_desc = paste(grade,description,sep="_")) %>% 
+  filter(grade_desc %in% c("M2_Simple Assault", "M2_Recklessly Endangering Another Person", 
+    "M_Int Poss Contr Subst By Per Not Reg")) %>% 
+  count(disposing_authority__document_name, sort=T) %>% 
+  head() %>% pander::pander()
+```
+
+Based on this information, I used Rayford A. Means as the example.
+
+```{r}
+input_judge <- "Rayford A. Means"
+od_filtered <- od_clean %>% 
+  mutate(grade_desc = paste(grade,description,sep="_"),
+         select_judge = disposing_authority__document_name==input_judge) %>% 
+  filter(grade_desc %in% c("M2_Simple Assault", "M2_Recklessly Endangering Another Person", 
+    "M_Int Poss Contr Subst By Per Not Reg"),
+    !is.na(disposition))
+
+sentence_type_summary <- od_filtered %>% 
+  group_by(grade_desc, select_judge) %>% 
+  count(sentence_type) %>% 
+  mutate(prop_sentence_type = n/sum(n)) %>% 
+  ungroup() %>% 
+  mutate(axis_label = paste0(sentence_type, " (n=", as.character(n), ")"))
+
+sentence_length_summary <- od_filtered %>% 
+  group_by(grade_desc, select_judge, sentence_type) %>% 
+  summarise(median_min_days = median(min_period_days, na.rm = T),
+            mean_min_days = mean(min_period_days, na.rm = T),
+            median_max_days = median(max_period_days, na.rm = T),
+            mean_max_days = mean(max_period_days, na.rm = T)) 
+  
+
+```
+
+### Plot the sentence type by offense
+```{r}
+ggplot(sentence_type_summary, aes(x=sentence_type, 
+                                  y = 100*prop_sentence_type, 
+                                  fill=select_judge)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  geom_text(aes(label=n), size=2,
+            position=position_dodge(width=0.9), vjust=-0.25) + 
+  facet_grid(.~grade_desc, scales = "free_x",space="free_x",
+             labeller = labeller(grade_desc = label_wrap_gen(25)))+
+  labs(title="Sentence type by judge and offense",
+       subtitle = "Selected judge: Rayford A. Means",
+       x = "", y = "Percentage",
+       caption = "Only considering offenses with a disposition") + 
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle=90, hjust=1,vjust=0.5))
+```
+
+```{r}
+sentence_length_summary %>% 
+  filter(sentence_type %in% c("Confinement","Probation")) %>% 
+  tidyr::pivot_longer(ends_with("days")) %>% 
+  filter(name %in% c("median_min_days","median_max_days")) %>% 
+  mutate(group = paste(select_judge,sentence_type)) %>% 
+  ggplot( aes(x=sentence_type, 
+              y = value,
+              group = group,
+              color=select_judge)) + 
+  geom_point(position = position_dodge(width=0.4), size = 3) + 
+  geom_line(position = position_dodge(width=0.4), 
+            size=1.5, alpha=0.7) +
+  facet_grid(.~grade_desc, scales = "free_x",space="free_x",
+             drop=T,
+             labeller = labeller(grade_desc = label_wrap_gen(25)))+
+  labs(title="Sentence length by judge and offense",
+       subtitle = "Selected judge: Rayford A. Means",
+       x = "", y = "Median Sentence min/max (days)",
+       caption = "Only considering offenses with a disposition") + 
+  scale_color_manual(values = c("lightgray","goldenrod3")) + 
+  coord_flip() + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle=90, hjust=1,vjust=0.5))
+```
+
+
+# What was the wait until disposition? (time between arrest and disposition) (Alice)
+
+For illustration, I will use the same example set of offenses and judge. (Eventually need to pre-calculate the summary stats for all judges and offenses?)
+
+Here, we need to separate by disposition method (Non-Jury Trial, Jury Trial, etc.) and disposition (negotiated or not). Some of these were rare, so they were lumped into "Other".
+
+```{r}
+process_duration_summary <- od_filtered %>% 
+  ungroup() %>% 
+  # Merge in ddd data
+  left_join(ddd, by = "docket_id") %>% 
+  # group some variables
+  mutate(disposition = forcats::fct_lump(disposition, n=4),
+         disposition_method = forcats::fct_lump(disposition_method, n=4)) %>% 
+  group_by(grade_desc, select_judge, disposition_method) %>% 
+  summarise(n = n(),
+            median_arrest_to_disp_days = 
+              median(as.double(difftime(disposition_date, arrest_date, units = "days")),
+                     na.rm = T),
+            mean_arrest_to_disp_days = 
+              mean(as.double(difftime(disposition_date, arrest_date, units = "days")),
+                   na.rm = T), 
+            .groups = "drop") %>% ungroup()
+```
+
+I am not sold on this being a very useful metric. I can conclude that trials take longer than other disposition methods.
+
+```{r}
+process_duration_summary %>% 
+ggplot(aes(x=disposition_method, 
+                                  y = median_arrest_to_disp_days, 
+                                  fill=select_judge)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  geom_text(aes(label=n), size=2,
+            position=position_dodge(width=0.9), vjust=-0.25) + 
+  facet_grid(.~grade_desc, scales = "free_x",space="free_x",
+             labeller = labeller(grade_desc = label_wrap_gen(25)))+
+  labs(title="Duration by judge and offense",
+       subtitle = "Selected judge: Rayford A. Means",
+       x = "", y = "Median days: arrest to disposition",
+       caption = "Only considering offenses with a disposition") + 
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle=90, hjust=1,vjust=0.5))
+```
+
+# Past ideas
+This is just a stream of consciousness exploration of the data and debugging all the data manipulations.
+
 
 ## Judge scorecard/summary
 Can we filter by judge, then show some dashboard about them with comparisons "other judges".
@@ -37,16 +210,15 @@ You select 1 judge and then can filter by:
 We return:
 
 - Number of dockets
-- Bail information
 - Sentence information
 - Social media or news about the judge?
 
-Top 5 judges by year (number of dockets)
+Top 2 judges by year (number of dockets)
 ```{r}
 merged %>% 
   mutate(year = lubridate::year(filing_date)) %>% 
   group_by(year) %>% 
-  mutate(judge = forcats::fct_lump_n(judge, n=5))%>% 
+  mutate(judge = forcats::fct_lump_n(judge, n=2))%>% 
   ungroup() %>% 
   filter(judge!="Other") %>% 
   count(year,judge, sort=F) %>% 
@@ -83,7 +255,7 @@ input %>% as.data.frame() %>% pander::pander()
 ```{r}
 # Have not implemented all the searches, just a couple of them to illustrate
 if(is.null(input$search_term)) input$search_term <- "*"
-if(is.null(input$statute_title)) input$statute_title <- unique(unlist(merged$statute_pt1))
+if(is.null(input$statute_title)) input$statute_title <- unique(unlist(merged$statute_title))
   
   
 # Modify the data based on these searches
@@ -94,7 +266,8 @@ mydata <- merged %>%
                                  na.rm = T)   
   )
 
-mydata$select_searchterm <- tolower(mydata$desc_main) %>% 
+# this is too slow
+mydata$select_searchterm <- tolower(mydata$description) %>% 
   grepl(pattern = tolower(input$search_term), unlist(.))
 
 # Filter the data based on these searches
@@ -114,8 +287,9 @@ mydata %>%
   ggplot(aes(x=year,fill=select_judge)) + 
   geom_bar(position = "dodge") + 
   labs(title=input$judge,
-       subtitle = "Dockets per year") + 
-  theme_bw()
+       subtitle = "Dockets per year") +
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal()
 ```
 
 ### Total dockets by max grade of any offense on that docket
@@ -126,7 +300,8 @@ mydata %>%
   geom_bar(position = "dodge") + 
   labs(title=input$judge,
        subtitle = "Dockets per max grade") + 
-  theme_bw()
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal()
 ```
 
 ### Demographics of defendants
@@ -136,7 +311,9 @@ mydata %>%
   geom_bar(position = "dodge") + 
   labs(title=input$judge,
        subtitle = "Defendant gender") + 
-  theme_bw()
+  
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal()
 ```
 
 ```{r}
@@ -145,7 +322,10 @@ mydata %>%
   geom_bar(position = "dodge") + 
   labs(title=input$judge,
        subtitle = "Defendant race") + 
-  theme_bw()
+  
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
 ```
 
 
@@ -158,7 +338,9 @@ mydata %>%
   geom_bar(position = "dodge") +
   labs(title=input$judge,
        subtitle = "Dispositions") + 
-  theme_bw() + 
+  
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal() + 
   theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
 ```
 
@@ -169,68 +351,20 @@ mydata %>%
   ggplot(aes(x=select_judge, group= select_judge, y= max_sentence_all)) + 
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(height=0,width=0.2, aes(color = included_felony)) + 
-  # facet_wrap(~year) + 
+  facet_wrap(~included_felony) +
   # scale_y_log10() + 
   labs(title=input$judge,
        x = "Is Rayford A. Means the judge?",
        subtitle = "max sentences (days confinement or probation) for retail theft") + 
-  theme_bw()
+  
+  scale_fill_manual(values = c("lightgray","goldenrod3")) + 
+  theme_minimal()
+  
 ```
 
 ### Bail
 
-Note that the judges for bail are different than the judges for dispositions!!
-
-```{r}
-# mydata %>% 
-#   ggplot(aes(x=any_monetary_bail,fill=select_judge)) + 
-#   geom_bar(position = "dodge") +
-#   labs(title=input$judge,
-#        subtitle = "Bail") + 
-#   theme_bw() + 
-#   theme(axis.text.x = element_text(angle =90, hjust=1,vjust=0.5))
-```
-
-
-```{r}
-# mydata %>% 
-#   filter(!is.na(initial_set_bail_amount), initial_set_bail_amount>0) %>% 
-#   ggplot(aes(x=max_grade, group= max_grade, y= initial_set_bail_amount)) + 
-#   geom_boxplot(outlier.shape = NA) +
-#   geom_jitter(height=0,width=0.2, alpha = 0.25, aes(color=select_judge)) + 
-#   scale_y_log10() +
-#   labs(title=input$judge,
-#        subtitle = "Initial bail total amount by highest grade offense",
-#        caption = "Note that this excludes $0 bail") + 
-#   theme_bw()
-```
-
-## Other ideas
-
-How many dockets had no bail amount > 0 ? (Could be ROR or nonmonetary)
-
-```{r}
-mydata %>% 
-  filter(max_bail_amount == 0) %>% 
-  count(max_grade, sort=T) %>% 
-  pander::pander()
-```
-
-
-The minimum bail per docket ranges from 1 dollar to 100,100,000 dollars in the entire dataset.
-
-```{r}
-mydata %>% 
-  filter(min_bail_amount>0) %>% 
-ggplot( aes(x=max_grade, y= min_bail_amount))+
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(height=0, width=0.15, alpha=0.5) +
-  scale_y_log10() +
-  labs(title = "Min bail amount when >$0",
-       subtitle = "All years") + 
-  theme_bw()
-
-```
+Note that the judges for bail are different than the judges for dispositions! I did not get very far here.
 
 
 ```{r}
