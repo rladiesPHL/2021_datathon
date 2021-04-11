@@ -107,7 +107,7 @@ od_clean <- od %>%
 
 # statute_name has some interesting characters, let's remove those and split into parts
 od_clean <- od_clean %>% 
-  tidyr::separate(statute_name, 
+  tidyr::separate(statute_name, remove=FALSE,
                   into=c("statute_title","statute_section","statute_pt3"), 
                   sep= " § | §§ | ยง | ยงยง ", fill = "right") %>% 
   dplyr::left_join(statute_codes, 
@@ -115,6 +115,10 @@ od_clean <- od_clean %>%
 
 # clean the sentencing fields
 od_clean <- clean_periods(od_clean)
+
+# Small clean up to reduce the number of unique offense descriptions
+# There are 825 unique 'description_clean' values
+od_clean <- clean_descriptions(od_clean)
 
 
 # Merge into one file (one docket:judge combo per row) ----

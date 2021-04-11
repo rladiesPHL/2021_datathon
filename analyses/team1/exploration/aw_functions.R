@@ -89,9 +89,9 @@ aggregate_od <- function(data){
               max_grade = grade[n()]) %>% 
     ungroup() 
   
-  summarise_cols <- intersect(names(data), c("desc_main","description", "sentence_type", "disposition", 
-                                             "disposition_method", "statute_title", 
-                                             "statute_chapter", "Title_Description","Chapter_Description"))
+  summarise_cols <- intersect(names(data), c("desc_main","description_clean", "sentence_type", "disposition", 
+                                             "disposition_method", "statute_title","statute_description", 
+                                             "statute_chapter", "Title_Description"))
   other_info <- data %>% 
     distinct(across(all_of(c("docket_id",summarise_cols)))) %>% 
     group_by(docket_id) %>% 
@@ -164,25 +164,29 @@ clean_periods <- function(data){
 }
 
 
-#' Clean the sentence period variables
+#' Clean the offense descriptions 
 #' @description This function takes in a data.frame with description variable and 
-#' transforms to be easier to work with. This does not reduce the number of unique 
-#' values in description very much.
+#' transforms to be easier to work with. This requires data with statute_description and 
+#' statute_name fields. This creates a description_clean field that has one unique
+#' value for every unique statute_name value.
 #'  
-#' @param data Offenses and Dispositions data.frame from the original dataset
-#' @return  modified data.frame with cleaned desc_main variable.
+#' @param data Offenses and Dispositions data.frame 
+#' @return  modified data.frame with cleaned description_clean variable.
 #' 
 #' 
 
 clean_descriptions <- function(data){
-  if (!all(c("description") %in% colnames(data))) stop('variables missing from input data')
+  if (!all(c("description",
+             "statute_name", 
+             "statute_description") %in% colnames(data))) stop('variables missing from input data')
   
-  clean_od <- data %>% 
-    mutate(desc_main = ifelse(grepl("-",description),
-                              stringr::str_extract(description, ".+?(?=-)"),
-                              description))
+  clean_statutes <- data %>% 
+    distinct(statute_name, statute_description) %>% 
+    arrange(statute_name, statute_description) %>% 
+    distinct(statute_name, .keep_all = TRUE) %>% 
+    rename(description_clean = statute_description)
   
-  clean_od
+  dplyr::left_join(data, clean_statutes, by = "statute_name")
 }
 
 

@@ -46,7 +46,7 @@ I decided to work with these common offenses as an illustration.
 - M Int Poss Contr Subst By Per Not Reg   
 
 ```{r}
-od_clean %>% count(grade, description, sort=T) %>% 
+od_clean %>% count(grade, description_clean, sort=T) %>% 
   head() %>% pander::pander()
 ```
 
@@ -65,7 +65,7 @@ Note: This analysis does not include sentences with time served.
 What are the most common judges for the selected offenses?
 ```{r}
 od_clean %>% 
-  mutate(grade_desc = paste(grade,description,sep="_")) %>% 
+  mutate(grade_desc = paste(grade,description_clean,sep="_")) %>% 
   filter(grade_desc %in% c("M2_Simple Assault", "M2_Recklessly Endangering Another Person", 
     "M_Int Poss Contr Subst By Per Not Reg")) %>% 
   count(disposing_authority__document_name, sort=T) %>% 
@@ -77,7 +77,7 @@ Based on this information, I used Rayford A. Means as the example.
 ```{r}
 input_judge <- "Rayford A. Means"
 od_filtered <- od_clean %>% 
-  mutate(grade_desc = paste(grade,description,sep="_"),
+  mutate(grade_desc = paste(grade,description_clean,sep="_"),
          select_judge = disposing_authority__document_name==input_judge) %>% 
   filter(grade_desc %in% c("M2_Simple Assault", "M2_Recklessly Endangering Another Person", 
     "M_Int Poss Contr Subst By Per Not Reg"),
@@ -267,7 +267,7 @@ mydata <- merged %>%
   )
 
 # this is too slow
-mydata$select_searchterm <- tolower(mydata$description) %>% 
+mydata$select_searchterm <- tolower(mydata$description_clean) %>% 
   grepl(pattern = tolower(input$search_term), unlist(.))
 
 # Filter the data based on these searches
