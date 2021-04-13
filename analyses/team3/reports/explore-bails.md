@@ -1,26 +1,17 @@
----
-title: "Explore bails"
-output:
-  html_document:
-    theme: lumen
-    toc: true
-    code_download: true
-    highlight: tango
-knit: (function(inputFile, encoding) {
-  rmarkdown::render(inputFile, encoding = encoding, output_dir = "htmls") })
----
+Explore bails
+================
 
 # Team 3: Understanding Systemic Trends
 
-Examine how things have changed in the courts since Larry Krasner took office in January 2018.
-Some example trends of interest:
+Examine how things have changed in the courts since Larry Krasner took
+office in January 2018. Some example trends of interest:
 
-- Number of people charged overall and by type of charge
-- Harshness in bail and/or sentencing
-- Number of defendants who fail to pay low monetary bail
-- Trends in case dismissals, probation, parole, etc.
+-   Number of people charged overall and by type of charge
+-   Harshness in bail and/or sentencing
+-   Number of defendants who fail to pay low monetary bail
+-   Trends in case dismissals, probation, parole, etc.
 
-```{r message=FALSE, warning=FALSE}
+``` r
 library(tidyverse)
 library(skimr)
 library(lubridate)
@@ -32,8 +23,10 @@ theme_set(theme_minimal())
 theme_update(panel.grid.minor = element_blank())
 ```
 
-Uncomment the following chunk to filter to the periods before and after Larry Krasner took office.
-```{r}
+Uncomment the following chunk to filter to the periods before and after
+Larry Krasner took office.
+
+``` r
 # bail_short <- vroom::vroom('csv/bail.csv')
 # # skim(bail_short)
 # # str(bail_short)
@@ -53,14 +46,13 @@ Uncomment the following chunk to filter to the periods before and after Larry Kr
 # save(bail_larry, file = 'processed-data/bail-larry.rds')
 ```
 
-```{r}
+``` r
 load('processed-data/bail-larry.rds')
 ```
 
-
 Changes in judges involvement:
 
-```{r fig.width=10}
+``` r
 bail_judges <- bail_larry %>%
   mutate(judge_name = case_when(
     is.na(participant_name__first_name) ~ NA_character_,
@@ -75,7 +67,11 @@ judges <- bail_judges %>%
   ungroup() %>% 
   group_by(period, judge_name) %>% 
   summarise(total_adj_n = sum(weighted_n)) 
+```
 
+    ## `summarise()` has grouped output by 'period'. You can override using the `.groups` argument.
+
+``` r
 judges %>% 
   mutate(rank = dense_rank(desc(total_adj_n))) %>% 
   group_by(judge_name) %>% 
@@ -94,7 +90,11 @@ judges %>%
   guides(color = guide_legend(reverse = TRUE))
 ```
 
-```{r}
+    ## Warning: Removed 1 rows containing missing values (geom_text).
+
+![](explore-bails_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
 min_bail <- bail_larry %>% 
   group_by(docket_id) %>% 
   mutate(min_amount = min(total_amount)) %>% 
@@ -106,46 +106,12 @@ min_bail %>%
   scale_y_log10()
 ```
 
-```{r}
+    ## Warning: Transformation introduced infinite values in continuous y-axis
+
+    ## Warning: Removed 738810 rows containing non-finite values (stat_boxplot).
+
+![](explore-bails_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+``` r
 knitr::knit_exit()
-```
-
-```{r include=FALSE}
-# Check docket_id 325683, 196349, 124026 or 150893 
-
-# bail_larry %>% 
-#   distinct(docket_id, total_amount) %>% 
-#   count(docket_id) %>% 
-#   filter(n > 2) %>% 
-#   {.}
-
-# bail_short %>% 
-#   count(docket_id) %>% 
-#   filter(n > 100)
-
-# bail_short %>% 
-#   filter(docket_id == 124026) %>% 
-#   View()
-
-# bail_larry %>% 
-#   count(participant_name__title, period) %>% 
-#   filter(!is.na(participant_name__title), n > 100) %>% 
-#   ggplot(aes(x = n, 
-#              fill = period, 
-#              y = participant_name__title %>% fct_reorder(n))) +
-#   geom_col(position = 'dodge2') +
-#   scale_x_log10() +
-#   labs(y = NULL, x = 'Frequency')
-
-# min_bail %>% 
-#   group_by(period) %>% 
-#   count(docket_id) %>% 
-#   ggplot(aes(x = period)) +
-#   geom_bar() +
-#   # scale_y_log10() +
-#   NULL
-
-# Percentage columns is largely uninformative.
-# bail_larry$percentage %>% summary()
-
 ```
