@@ -16,28 +16,28 @@ Rate of ROR: proportion of cases where defendants were released on recognizance 
 Goals: 
 
 - Explore how rates of ROR have changed after Krasner took office
-- Explore any racial disparities rates of ROR
+- Explore any racial disparities in rates of ROR
 
 Findings:
 
-- Overall, the rate of ROR increased after Krasney took office for both misdemeanors and felonies 
+- Overall, the rate of ROR increased after Krasner took office for both misdemeanors and felonies. 
 - For misdemeanors, the rate of ROR grew more for white defendants than black defendants.     
-- For felonies, rates of ROR seemed roughly equal for black and white defendants. 
+- For felonies, there did not seem to be a racial disparity in the rate of ROR before and after.
 
 Caveat: 
 
-- We don't have hispanic/latino in our race data. It's possible this information is captured by Ethnicity, which we don't have.  
+- We don't have hispanic/latino in our race data. It's possible this information is captured by ethnicity data, which we don't have.  
 
 Krasner's No Cash Bail Policy
 
-- Krasner established a policy where his office would not request bail for 25 types of offesnes in February, 2018, shortly after he took office.
-- It's difficult to take a closer look at this policy with our data because there are certain details we don't have.  For example, possession with intent deliver made up almost a third of eligible cases.  However, these cases are inelible if the a defendant committed the same offense within six months prior.  We don't have to distinguish these cases.  
+- Krasner established a policy in February, 2018, where his office would not request bail for 25 types of offesnes.
+- It's difficult to take a closer look at this policy with our data because there are certain details we don't have.  For example, possession with intent deliver made up almost a third of eligible cases.  However, these cases are inelible if the defendant committed the same offense within six months prior.  We don't have the data to distinguish these cases.  
 - The exploration in this file considers cases regardless of their eligibility for the no cash bail policy.
 
 ## Initial set-up
 
-Most of the initial set up is copied and pasted from "bail and race"
-I used the code from that file as a basis to create the graphs in this file in general.
+- Most of the initial set up is copied and pasted from "bail and race"
+- I used the code from that file as a basis to create the graphs in this file in general.
 
 Loading libraries
 
@@ -58,7 +58,7 @@ Loading the full datasets (all years):
 larry_date <- as.Date("2018-01-02")
 start_period_1 <- larry_date - period(2, "years")
 end_period_2 <- larry_date + period(2, "years")
-dat_dir <- "csv"
+dat_dir <- "C:/Users/katri/Documents/GT/R-Ladies Datathon 2021/csv"
 
 bail_raw <- vroom::vroom(file.path(dat_dir, "bail.csv"))
 off_raw <- vroom::vroom(file.path(dat_dir, "offenses_dispositions.csv")) %>%
@@ -151,6 +151,8 @@ joined <- bail_grouped %>%
 
 ## Rate of ROR: Misdemeanors vs Felonies
 
+ROR increased for both misdemeanors and felonies.
+
 ```{r }
 joined %>%
   group_by(period, grade) %>%
@@ -177,7 +179,8 @@ joined %>%
 
 - Looked at black and white because these were the most common races.
 - Although the rate of ROR for misdemeanors grew for both races, it increased by a larger amount for white defendants
-- Previous research evaluating the implementation of Krasney's No Cash Bail Policy also found that white defendants disporportionally benefitted. 
+- Previous research evaluating the implementation of Krasner's No Cash Bail Policy also found that white defendants disporportionally benefitted. 
+- Before Krasner took office, there was already a racial disparity in rates of ROR.
 
 ```{r }
 
