@@ -122,6 +122,7 @@ statute_map <- statute_map %>% mutate(Title.Chapter = paste(statute_pt1,Chapter,
 
 statute_map %>% select(statute_name, statute_pt1, Chapter, Title.Chapter) %>% distinct() %>% arrange(Chapter) %>% arrange(statute_pt1) %>% head()
 
+###codes obtained from https://law.justia.com/codes/pennsylvania/2019/title-18/
 statute.codes <- xlsx::read.xlsx(paste0(prefix,'2021_datathon/analyses/team1/exploration/Statute_Codes.xlsx'), sheetIndex = 1)
 
 statute_map_codes <- left_join(statute_map, statute.codes)
