@@ -33,9 +33,9 @@ I used the data I had already manipulated and saved locally in the 'aw_process_d
 
 ## Do judges follow sentencing guidelines?
 
-I selected some top statutes. [PA law sentencing guidelines](https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/204/chapter303/chap303toc.html&d=reduce) are very complicated. So it would be a piece of future work to create some code that would take in the data from a docket and algorithmically produce the guideline. I am guessing judges already have that.
+[PA law sentencing guidelines](https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/204/chapter303/chap303toc.html&d=reduce) are very complicated. So it would be a piece of future work to create some code that would take in the data from a docket and algorithmically produce the guideline. I am guessing judges already have that.
 
-Then I selected an example judge and calculated the "typical" sentence by summarizing all the other judges. For a dashboard - we could pre-calculate all this information and then the input could be to select the judge and the offense.
+I selected some top statutes. Then I selected a judge and calculated the "typical" sentence by summarizing all the other judges. For a dashboard - we could pre-calculate all this information and then the input could be to select the judge and the offense.
 
 ### Most common statutes in the data
 
@@ -52,8 +52,17 @@ od_clean %>% count(grade, description_clean, sort=T) %>%
 
 There are a couple of ways to work on the data
 
-- Consider only offenses on a docket with a disposition (many rows from a docket do not have a disposition)
+- Consider only offenses with an associated disposition (many rows from a docket do not have a disposition)
+- Note that some dockets will contain multiple occurences of the same offense. Here we are not aggregating them. There are muliple ways that could be done (just take one, add up the sentences, take the min/max, or take the mean or median)
+
+OR 
+
 - Consider the docket holistically - if the offense occurs on the docket, but doesn't have a disposition, still consider that as an occurence of the offense and look at the overall docket
+
+OR
+
+- Consider only dockets where there is only a single offenses
+
 
 For this purpose, I will try the first one - and look for only sentences specifically associated with that offense of interest. I could summarize the other offenses on the docket as a second variable to consider.
 
@@ -61,13 +70,13 @@ Note: This analysis does not include sentences with time served.
 
 ### Choose some judges for illustration
 
-
 What are the most common judges for the selected offenses?
 ```{r}
 od_clean %>% 
   mutate(grade_desc = paste(grade,description_clean,sep="_")) %>% 
-  filter(grade_desc %in% c("M2_Simple Assault", "M2_Recklessly Endangering Another Person", 
-    "M_Int Poss Contr Subst By Per Not Reg")) %>% 
+  filter(grade_desc %in% c("M2_Simple Assault",
+                           "M2_Recklessly Endangering Another Person",
+                           "M_Int Poss Contr Subst By Per Not Reg")) %>% 
   count(disposing_authority__document_name, sort=T) %>% 
   head() %>% pander::pander()
 ```

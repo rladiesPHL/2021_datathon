@@ -82,6 +82,7 @@ bailcols <- readr::cols(
 bail <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail.csv',
                         col_types = bailcols)
 
+defendants <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_ids.csv')
 # There is a statutes.csv file in the repo - NOT NEEDED IF USING V3 DATA
 # statute_map <- readr::read_csv(here::here('data/statutes.csv'))
 
@@ -128,7 +129,10 @@ od_clean <- clean_descriptions(od_clean)
 od_agg <- aggregate_od(od_clean)
 bail_agg <- aggregate_bails(bail)
 merged <- left_join(od_agg, bail_agg, by = "docket_id") %>% 
-  left_join(ddd, by = "docket_id")
+  left_join(ddd, by = "docket_id") 
+
+# Write out ddd + defendants
+ddd <- left_join(ddd, defendants)
 
 # Example docket with 3 judges: 	14284
 # Example docket with 3 dispositions: 5134
