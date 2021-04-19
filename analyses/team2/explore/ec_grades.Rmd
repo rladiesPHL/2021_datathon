@@ -1,0 +1,188 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Exploring the `grades` column.
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(rprojroot))
+```
+```{r}
+source(file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                 "analyses", "team2", "preprocess", "ec_functions.R"))
+```
+
+
+In this notebook I'm only going to examine data that are present in the `offenses_dispositions` data file. 
+
+```{r}
+dispositions <- read_csv(file.path(find_root(is_rstudio_project), "data",
+                                   "offenses_dispositions_v3_periods.csv"),
+                         col_types = cols(
+  X1 = col_double(),
+  docket_id = col_double(),
+  description = col_character(),
+  statute_description = col_character(),
+  statute_name = col_character(),
+  sequence_number = col_double(),
+  grade = col_character(),
+  disposition = col_character(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  disposing_authority__title = col_character(),
+  disposing_authority__document_name = col_character(),
+  disposition_method = col_character(),
+  min_period = col_character(),
+  max_period = col_character(),
+  period = col_character(),
+  credit = col_double(),
+  sentence_type = col_factor(levels = c("No Further Penalty",
+                                        "Merged",
+                                        "Probation",
+                                        "IPP",
+                                        "Confinement")),
+  min_period_parsed = col_character(),
+  max_period_parsed = col_character(),
+  min_period_days = col_double(),
+  max_period_days = col_double()
+))
+```
+
+Let's look at grades and sentence types.
+
+```{r}
+dispositions %>%
+  filter(!is.na(sentence_type), !is.na(grade)) %>%
+  ggplot(aes(sentence_type)) +
+  geom_bar() +
+  coord_flip() +
+  facet_wrap(~ grade, scales = "free_x") +
+  theme_minimal()
+```
+
+I don't know what's up with the `grade` values of H1, H2, IC, and I also don't know what's going on with S, M, and F without a number.
+
+```{r}
+dispositions %>%
+  filter(grade %in% c("H1", "H2")) %>%
+  count(grade, statute_name) %>%
+  arrange(grade, desc(n)) %>%
+  group_by(grade) %>%
+  slice(1:5)
+```
+
+H stands for "homicide", 18 § 2502 §§ A is murder of the first degree and 18 § 2502 §§ B is murder of the second degree (which could have been coded as a F1, but was not). 
+
+```{r}
+dispositions %>%
+  filter(statute_name == "18 § 2502 §§ B") %>%
+  count(grade)
+```
+
+What about "IC"?
+
+```{r}
+dispositions %>%
+  filter(grade == "IC") %>%
+  count(statute_name) %>%
+  arrange(desc(n)) %>%
+  head(10)
+```
+
+These are cases of contempt for violating a protection order.
+
+# Cleaning up `NA`s.
+
+How often is `grade` set to `NA` but a `statute_name` is available, anyway?
+
+```{r}
+# Clean up this error
+dispositions <- dispositions %>%
+  mutate(statute_name = str_replace_all(statute_name, "ยง", "§"))
+
+dispositions %>%
+  filter(is.na(grade),
+         !is.na(statute_name)) %>%
+  nrow()
+```
+
+Whoa, that's a lot. 
+
+For each statute name, find the most common grade, and the percentage of instances of that statute for which that grade is selected.
+
+```{r}
+most_popular_grade <- dispositions %>%
+  filter(!is.na(grade), !is.na(statute_name)) %>%
+  count(grade, statute_name, name = "num_dispositions") %>%
+  arrange(statute_name, desc(num_dispositions)) %>%
+  group_by(statute_name) %>%
+  mutate(statute_pct = 100 * num_dispositions / sum(num_dispositions))
+
+most_popular_grade %>%
+  slice(1) %>%
+  ungroup()  %>%
+  arrange(statute_pct) %>%
+  mutate(cum_density = row_number(statute_pct) / nrow(.)) %>%
+  ggplot(aes(statute_pct, cum_density)) +
+  geom_line() +
+  theme_minimal()
+```
+
+This figure tells us that, for 75% of the `statute_name` values, a single `grade` accounts for 100% of the dispositions. We can use these cases to fill in missing `grade` values.
+
+```{r}
+top_most_popular_grade <- most_popular_grade %>%
+  filter(statute_pct > 100 - 1e-8) %>%
+  select(statute_name, most_common_grade = grade)
+  
+dispositions <- left_join(dispositions, top_most_popular_grade, 
+                          by = "statute_name") %>%
+  mutate(new_grade = ifelse(is.na(grade), most_common_grade, grade))
+
+dispositions %>%
+  filter(is.na(new_grade),
+         !is.na(statute_name)) %>%
+  nrow()
+```
+
+This step recovers tens of thousands of missing `grade` values, so it's probably worth making this process into a function. 
+
+...done.
+
+Now make sure that the function version returns the same thing.
+
+```{r}
+all.equal(dispositions$new_grade,
+          backfill_disposions_grades(dispositions$grade, 
+                                     dispositions$statute_name))
+```
+
+Now let's see what's going on when grade "S", "M", and "F" don't have an associated number. Are these just missing data?
+
+Find the top ten statutes for each grade and compare them.
+
+```{r}
+most_popular_statute <- most_popular_grade %>%
+  group_by(grade) %>%
+  mutate(grade_pct = 100 * num_dispositions / sum(num_dispositions),
+         rank = row_number(100 - grade_pct)) %>%
+  filter(rank <= 10) %>%
+  mutate(statute_name = paste0(statute_name, 
+                               " (", format(num_dispositions, big.mark = ","), ")")) %>%
+  select(statute_name, rank, grade) %>%
+  arrange(grade, rank) %>%
+  pivot_wider(names_from = "grade", values_from = "statute_name")
+
+select(most_popular_statute, starts_with("F"))
+```
+```{r}
+select(most_popular_statute, starts_with("M"))
+```
+```{r}
+select(most_popular_statute, starts_with("S"))
+```
+
+To my (non-expert) eye, these are all different enough, but have enough overlap, to conclude that `statute_name` and `grade` provide different information, and that grades of "M" and "F", without a number, are meaningful and not errors.

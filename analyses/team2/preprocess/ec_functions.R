@@ -164,3 +164,45 @@ clean_period_to_days <- function(period_clean, time_served = NA) {
 
   purrr::map2_dbl(period_split, time_served, ~sum(units_to_days(.x, .y)))
 }
+
+
+#' Replace missing grades with the most common `grade` for a given
+#' `statute_name`.
+#'
+#' This only makes the replacement when a `statute_name` is associated with the
+#' same `grade` 100% of the time.
+#'
+#' @param grade A character column of dispositions grades
+#' @param statute_name A character column of associated dispositions statute names
+#'
+#' @return A new character column of dispositions grades
+#' @export
+backfill_disposions_grades <- function(grade, statute_name) {
+  # Clean up a quick transcription error
+  statute_name <- stringr::str_replace_all(statute_name, "ยง", "§")
+  
+  statute_df <- dplyr::tibble(grade, statute_name)
+  
+  # Identify the unique statute_names that are always associated with the same
+  # grade.
+  statute_top_grade <- dplyr::filter(statute_df,
+                                     !is.na(grade), !is.na(statute_name))
+  statute_top_grade <- dplyr::distinct(statute_top_grade)
+  statute_top_grade <- dplyr::group_by(statute_top_grade, statute_name)
+  statute_top_grade <- dplyr::mutate(statute_top_grade, 
+                                     id = dplyr::row_number(grade))
+  statute_top_grade <- dplyr::filter(statute_top_grade,
+                                     id == max(id),
+                                     id == 1)
+  statute_top_grade <- dplyr::select(statute_top_grade,
+                                     statute_name, top_grade = grade)
+  
+  statute_df <- dplyr::left_join(statute_df, statute_top_grade,
+                                 by = "statute_name")
+  statute_df <- dplyr::mutate(statute_df,
+                              grade = ifelse(is.na(grade),
+                                             top_grade,
+                                             grade))
+
+  statute_df$grade
+}
