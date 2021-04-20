@@ -25,6 +25,19 @@ titles <-
   sort() %>% 
   print()
 
+title_html <-
+  xml2::read_html("https://www.legis.state.pa.us/cfdocs/legis/LI/Public/cons_index.cfm")
+
+title_ids <-
+  rvest::html_table(title_html, header = TRUE)[[3]] %>% 
+  select(Title, Name) %>% 
+  transmute(
+    title_id = str_pad(Title, 2, pad = "0"),
+    title_text = str_to_sentence(Name)
+  ) %>% 
+  drop_na()
+
+
 # Get URL Contents ----
 # url <- "https://www.legis.state.pa.us/cfdocs/legis/LI/consCheck.cfm?txtType=HTM"
 # title_urls <- glue("{url}&ttl={titles}")
@@ -47,7 +60,7 @@ get_url_text <- function(title_id) {
 #      head(200) %>%
       trimws() %>%
       tolower()
-  ) %>%
+  ) %>% 
     filter(nchar(text) > 1)
 }
 
@@ -128,8 +141,7 @@ fill_left <- function(i, df) {
 # * all_levels ----
 all_levels <- 
   all_title_contents %>% 
-  mutate(title_text = ifelse(str_detect(lag(text), "^title "), text, NA)) %>% 
-  fill(title_text) %>% 
+  left_join(title_ids) %>% 
   find_subsection("part", "level_1", NULL) %>%
   find_subsection(string = "article", new = "level_2", prior = "level_1_id") %>% 
   find_subsection(string = "chapter", new = "level_3", prior = "level_2_id") %>% 
@@ -151,7 +163,7 @@ for (i in (level_cols)) {
 }
 
 # * final_statutes ----
-final_statutes <-
+statute_hierarchy <-
   levels_adjusted %>% 
   mutate_all(trimws) %>% 
   filter(str_detect(text, "^§")) %>%
@@ -162,6 +174,7 @@ final_statutes <-
   ) %>% 
   select(-text) %>% 
   relocate(statute, .before = title_id) %>% 
-  distinct()
+  distinct() %>% 
+  full_join(title_ids)
 
-write_csv(final_statutes, "data/statute_hierarchy.csv")
+write_csv(statute_hierarchy, "data/statute_hierarchy.csv")
