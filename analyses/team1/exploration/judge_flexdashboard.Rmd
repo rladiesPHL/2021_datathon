@@ -32,7 +32,10 @@ merged <- od_clean %>%
   # We dont end up using most the data in the current app
   select(judge, year, docket_id, grade, description, description_clean,
          gender, defendant_id, race, grade_desc, sentence_type)
-
+# Display options in order of most common
+judge_options <- na.omit(dplyr::pull(dplyr::count(od_clean, judge, sort=T), judge))
+description_options <- na.omit(dplyr::pull(dplyr::count(od_clean, description_clean, sort=T), description_clean))
+  
 ```
 
 
@@ -40,10 +43,7 @@ Inputs {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r}
-# Display options in order of most common
-judge_options <- na.omit(dplyr::pull(dplyr::count(od_clean, judge, sort=T), judge))
-description_options <- na.omit(dplyr::pull(dplyr::count(od_clean, description_clean, sort=T), description_clean))
-  
+
 # Now create the inputs
 sliderInput('year', 'Year Range (filing date)', min=2010, max=2020,
             value=c(2010, 2020), step=1, round=T, sep="")

@@ -87,7 +87,7 @@ defendants <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-d
 # statute_map <- readr::read_csv(here::here('data/statutes.csv'))
 
 # Alison created a file to map the statutes
-statute_codes <- openxlsx::read.xlsx(here::here('analyses/team1/Statute_Codes.xlsx'))
+statute_codes <- openxlsx::read.xlsx(here::here('analyses/team1/exploration/Statute_Codes.xlsx'))
 statute_codes <- tidyr::separate(statute_codes, col=Title.Chapter, 
                                  into=c("statute_title","statute_chapter"),sep="-")
 # Will merge in only the title descriptions, so shorten to just that
@@ -97,9 +97,15 @@ statute_codes <- select(statute_codes, statute_title, title_description = Title_
 # Clean files and summarize ----
 #
 
+# Use team 2 function to fill in missing grades!
+source(here::here('analyses/team2/preprocess/ec_functions.R'))
+
+od$grade_backfilled <- backfill_disposions_grades(od$grade,
+                                                            od$statute_name)
+
 # Because we care about judges, I decided to remove all the dockets w/o a disposition
-# Note that there are still offenses here with NA disposition
 # These have no judges - reduces data size a lot
+# Note that there are still offenses here with NA disposition
 od_clean <- od %>% 
   group_by(docket_id) %>% 
   mutate(no_disposition = all(is.na(disposition))) %>% 
@@ -119,29 +125,46 @@ od_clean <- clean_periods(od_clean)
 
 # Small clean up to reduce the number of unique offense descriptions
 # There are 825 unique 'description_clean' values
-od_clean <- clean_descriptions(od_clean)
+od_clean <- clean_descriptions(od_clean) %>% 
+  # rename and a field
+  dplyr::mutate(judge = disposing_authority__document_name)
 
 
 # Merge into one file (one docket:judge combo per row) ----
 # Note: It probably does not make sense to have one docket per row
 # Here there can be multiple rows per docket if there were multiple judges on the disposition (rare)
+# Example docket with 3 judges: 	14284
+# Example docket with 3 dispositions: 5134
 # not all dockets will be included here - some filtered out
-od_agg <- aggregate_od(od_clean)
-bail_agg <- aggregate_bails(bail)
-merged <- left_join(od_agg, bail_agg, by = "docket_id") %>% 
-  left_join(ddd, by = "docket_id") 
+# od_agg <- aggregate_od(od_clean)
+# bail_agg <- aggregate_bails(bail)
+# merged <- left_join(od_agg, bail_agg, by = "docket_id") %>% 
+#   left_join(ddd, by = "docket_id") 
 
 # Write out ddd + defendants
 ddd <- left_join(ddd, defendants)
 
-# Example docket with 3 judges: 	14284
-# Example docket with 3 dispositions: 5134
 
+
+# This is offenses & dispositions data that has been cleaned up
+od_clean <- od_clean %>% 
+  # Depending on what you want, remove rows/offenses with NA disposition
+  dplyr::filter(!is.na(disposition)) # This will remove many rows
+
+# Doing this outside app to load into app
+merged <- od_clean %>% 
+  dplyr::left_join(ddd, by = "docket_id") %>% 
+  dplyr::mutate(disposition_year = lubridate::year(disposition_date)) %>% 
+  # We don't end up using most the data in the current app
+  dplyr::select(judge, disposition_year, docket_id, grade, description_clean,
+                gender, defendant_id, race, grade, sentence_type, min_period_days,
+                max_period_days, grade_backfilled)
 
 # Save out: -----
 LOCAL_LOCATION <- '~/Documents/'
-saveRDS(merged, paste0(LOCAL_LOCATION, "merged_jat.Rds"))
+saveRDS(merged, paste0(LOCAL_LOCATION, "merged_shiny.Rds"))
 # Probably better to save separate
+
 # Minimal versions for dashboard 
 saveRDS(od_clean, paste0(LOCAL_LOCATION, "od_clean.Rds"))
 saveRDS(ddd, paste0(LOCAL_LOCATION, "ddd.Rds"))
