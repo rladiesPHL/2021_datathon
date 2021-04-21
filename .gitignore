@@ -2,6 +2,13 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
+
 analyses/team3/reports/data/raw/defendant_docket_details.Rds
 analyses/team3/reports/data/raw/offenses_dispositions.Rds
 analyses/team3/reports/data/raw/bail.Rds
+
+analyses/team3/csv
+analyses/team3/processed-data
+analyses/team3/reports/bail-and-race_cache
+data/
