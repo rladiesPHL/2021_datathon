@@ -124,7 +124,12 @@ od_clean <- od_clean %>%
 od_clean <- clean_periods(od_clean)
 
 # Small clean up to reduce the number of unique offense descriptions
-# There are 825 unique 'description_clean' values
+# There are 1243 unique 'description_clean' values versus 1654 in the original
+# There are 870 statute_description fields
+# FROM JAT ON CONSPIRACY: What does “conspiracy” mean? There is statute 18, section 903 that are all conspiracy, but some of the descriptions include more details. Should we just treat these all the same? 
+# Rebecca H: In very non-technical terms, conspiracy is when two or more people get together and plan to do a crime. 18 Pa CS 903 is the statute that says that it’s illegal to do this, but then a conspiracy has what’s called an “object offense,” aka what you conspiring to do. So that’s why you are seeing above, conspiracy to commit murder vs conspiracy to commit retail theft are obviously very different things and the grades should reflect the grade of the object offense. So I think if possible it would be good to sort based on the object offense.
+
+
 od_clean <- clean_descriptions(od_clean) %>% 
   # rename and a field
   dplyr::mutate(judge = disposing_authority__document_name)
@@ -173,12 +178,12 @@ saveRDS(ddd, paste0(LOCAL_LOCATION, "ddd.Rds"))
 # Information
 sessionInfo()
 
-# R version 3.6.2 (2019-12-12)
-# Platform: x86_64-apple-darwin15.6.0 (64-bit)
-# Running under: macOS  10.16
+# R version 4.0.5 (2021-03-31)
+# Platform: x86_64-apple-darwin17.0 (64-bit)
+# Running under: macOS Big Sur 10.16
 # 
 # Matrix products: default
-# LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+# LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
 # 
 # locale:
 #   [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
@@ -187,11 +192,13 @@ sessionInfo()
 #   [1] stats     graphics  grDevices utils     datasets  methods   base     
 # 
 # other attached packages:
-#   [1] dplyr_1.0.2
+#   [1] dplyr_1.0.5 readr_1.4.0
 # 
 # loaded via a namespace (and not attached):
-#   [1] Rcpp_1.0.3       crayon_1.3.4     R6_2.4.1         lifecycle_0.2.0  magrittr_1.5    
-# [6] pillar_1.4.3     rlang_0.4.10     curl_4.3         rstudioapi_0.11  generics_0.0.2  
-# [11] vctrs_0.3.6      ellipsis_0.3.0   forcats_0.5.1    tools_3.6.2      readr_1.3.1     
-# [16] glue_1.4.2       purrr_0.3.4      hms_0.5.3        compiler_3.6.2   pkgconfig_2.0.3 
-# [21] tidyselect_1.1.0 tibble_3.0.6   
+#   [1] Rcpp_1.0.6       rstudioapi_0.13  magrittr_2.0.1   hms_1.0.0        tidyselect_1.1.0
+# [6] here_1.0.1       R6_2.5.0         rlang_0.4.10     fansi_0.4.2      stringr_1.4.0   
+# [11] tools_4.0.5      utf8_1.2.1       cli_2.4.0        DBI_1.1.1        ellipsis_0.3.1  
+# [16] assertthat_0.2.1 rprojroot_2.0.2  tibble_3.1.0     lifecycle_1.0.0  crayon_1.4.1    
+# [21] zip_2.1.1        purrr_0.3.4      tidyr_1.1.3      vctrs_0.3.7      curl_4.3        
+# [26] glue_1.4.2       openxlsx_4.2.3   stringi_1.5.3    compiler_4.0.5   pillar_1.6.0    
+# [31] generics_0.1.0   lubridate_1.7.10 pkgconfig_2.0.3  

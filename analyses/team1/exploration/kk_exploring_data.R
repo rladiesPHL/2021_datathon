@@ -61,11 +61,15 @@ details_sel <- details [c("docket_id", "gender","race", "municipality__name", "m
 
 # join the two data frames
 
-dispo_det <- inner_join(disposition, details_sel, by = "docket_id")
+dispo_det <- inner_join(disposition, details_sel, by = "docket_id")%>% 
+  distinct(docket_id, .keep_all = TRUE)
+
+# ALICE: I saved this dispo_det out for the app
+saveRDS(dispo_det, '../2021_datathon_dashboard/data/kk_dispo_det.Rds')
 
 # I chose to look at two races (White & Black) 
 
-dispo_race<- dispo_det %>% filter(str_detect(race, "White|Black" )) %>% distinct(docket_id, .keep_all = TRUE)
+dispo_race<- dispo_det %>% filter(str_detect(race, "White|Black" )) 
 
 # Calculating the percentage of the sentence by the grade
 

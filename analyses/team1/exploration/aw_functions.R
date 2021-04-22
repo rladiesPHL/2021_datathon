@@ -169,6 +169,7 @@ clean_periods <- function(data){
 #' transforms to be easier to work with. This requires data with statute_description and 
 #' statute_name fields. This creates a description_clean field that has one unique
 #' value for every unique statute_name value.
+#' However, it maintains the object offense for conspiracy (18 Pa CS 903)
 #'  
 #' @param data Offenses and Dispositions data.frame 
 #' @return  modified data.frame with cleaned description_clean variable.
@@ -181,12 +182,22 @@ clean_descriptions <- function(data){
              "statute_description") %in% colnames(data))) stop('variables missing from input data')
   
   clean_statutes <- data %>% 
-    distinct(statute_name, statute_description) %>% 
-    arrange(statute_name, statute_description) %>% 
-    distinct(statute_name, .keep_all = TRUE) %>% 
-    rename(description_clean = statute_description)
+    filter(!grepl("onspiracy", statute_description)) %>% 
+    mutate(description_clean = tolower(statute_description),
+           statute_name = sub("ยง", "§", statute_name)) 
   
-  dplyr::left_join(data, clean_statutes, by = "statute_name")
+  # There are 514 descriptions corresponding to conspiracy
+  conspiracy_data <- data %>% 
+    filter(grepl("onspiracy", statute_description)) %>% 
+    mutate(description_clean = tolower(stringr::str_replace(description, 
+                                                            pattern = "-  |- ","")),
+           statute_name = sub("ยง", "§", statute_name),
+           description_clean = ifelse(description_clean =="cruelty to animals", 
+                                "conspiracy cruelty to animals",
+                                description_clean)) 
+  
+  rbind(clean_statutes, conspiracy_data)
+
 }
 
 
