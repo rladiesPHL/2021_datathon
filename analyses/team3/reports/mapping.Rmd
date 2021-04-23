@@ -23,14 +23,14 @@ Resources I used: (these are here also for my personal reference)
 
 - Making natural breaks with jenks (optimizes natural break points especially for map data): https://medium.com/@traffordDataLab/lets-make-a-map-in-r-7bd1d9366098
 
-- R color palletes: https://www.r-bloggers.com/2012/10/palettes-in-r/
+- Saving leaflet maps as images: https://aghaynes.wordpress.com/2018/05/21/saving-leaflet-maps/
+
 
 ## Set Up
 
 I couldn't download a csv file from the website, so I had to copy and paste it into a notepad/excel file and save it as a csv.
 
 ```{r }
-setwd("C:/Users/katri/Documents/GT/R-Ladies Datathon 2021")
 charges <- read.csv("offenses_by_census_track.csv")
 ```
 
@@ -45,6 +45,7 @@ library(ggplot2)
 library(tigris)
 library(leaflet)
 library(stringr)
+library(mapview) 
 
 # I think this one was for jenks
 library(classInt)
@@ -79,7 +80,7 @@ tracts <- tracts(state = "PA", county = c(101), cb = TRUE)
 # plot(tracts)
 ```
 
-How did the total number of charges change before and after?
+How did the total number of charges change before and after? cases went down by about 13%
 
 ```{r }
 charges_cleaned %>%
@@ -221,12 +222,14 @@ Making a map like we did with the first few.  This time colors indicate how much
 changes_merged <- geo_join(tracts, changes, "GEOID", "tract_GEOID10")
 
 popup <- paste0("GEOID: ", changes_merged$GEOID, "<br>", "Number of charges", changes_merged$change)
-pal <- colorNumeric( # no bins this time, just did a gradient of colors
-  palette = "YlOrRd",
-  domain = changes_merged$change
-)
+# make vector of colors for values larger than 0 (6 colors)
+rc1 <- colorRampPalette(colors = c("#3CBC75FF", "white"), space = "Lab")(6)
+# make vector of colors for values larger than 0 (12 colors)
+rc2 <- colorRampPalette(colors = c("white", "#440154FF"), space = "Lab")(12)
+# combine color palettes
+pal <- colorNumeric(palette = c(rc1, rc2), domain = changes_merged$change)
 
-leaflet() %>%
+changes_map <- leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = changes_merged,
@@ -243,6 +246,9 @@ leaflet() %>%
     position = "bottomright",
     title = "Change in number of charges"
   )
+changes_map
+
+mapshot(changes_map, file = "changes_map.png")
 ```
 
 Making a graph, but this time for the % change. Once again, it's hard to interpet this. Although it might look like there were some major changes for some areas, some of these had a very low number of cases to begin with. 
