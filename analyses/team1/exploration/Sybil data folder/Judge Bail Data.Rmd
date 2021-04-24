@@ -2,7 +2,9 @@
 title: "Bail data"
 author: "Datathonteam1"
 date: "4/24/2021"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +15,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(tibble)
-require(scales)
+library(scales)
+#require(scales)
 ```
 
 ```{r}
@@ -179,6 +182,7 @@ JO2 <- ggplot(data = plot2JO, aes(x = factor(month), y = total_amount, fill = fa
   coord_flip() +
   geom_col(position="dodge", color="black") +
   facet_wrap(~action_type_name) +
+  theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill", x = "Season", y = "Bail Amount")
 
 JO2 + scale_y_log10()
@@ -190,6 +194,7 @@ JO <- ggplot(data = plot2JO, aes(x = factor(month), y = total_amount, fill = fac
   coord_flip() +
   geom_col(position="dodge", color="black") +
   facet_wrap(~year + action_type_name) +
+  theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill", x = "Season", y = "Bail Amount")
 
 JO + scale_y_log10()
@@ -206,11 +211,87 @@ JO3 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = fa
    coord_flip() +
   geom_col(position="dodge", color="black") +
    facet_wrap(~action_type_name) +
+  theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
 
 JO3 + scale_y_log10()
 
 ```
+
+
+New Section-1
+
+#use coord_flip() and filter by specific judge and year then facetwrap by action type and use scale limit upto 1 million dollars instead of scale log10
+```{r}
+JO5 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = factor(race))) +
+   coord_flip() +
+   geom_col(position="dodge", color="black") +
+   facet_wrap(~action_type_name, scales = "free") +
+  theme(legend.position="bottom") +
+  labs(title = "Judge:Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
+
+JO5 + scale_y_continuous(limits = c(0, 1000000))
+```
+
+```{r}
+JO4 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = factor(race))) +
+   coord_flip() +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+   facet_wrap(~action_type_name, scales = "free") +
+  theme(legend.position="bottom") +
+  labs(title = "Judge:Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
+
+JO4 + scale_y_continuous(limits = c(0, 1000000))
+```
+
+New Section-2
+
+#Grouping by race & action type then taking mean bail amount for each judge based off those groupings. Plot this information using ggplot. 
+```{r}
+df <- completerecords %>%
+  group_by(race, action_type_name) %>%
+  filter(factor(Judge) ==  "Joseph O'Neill") %>%
+  summarize(mean_total_amount =mean(total_amount)) %>%
+  mutate(race=fct_reorder(race, mean_total_amount)) 
+df
+
+  
+```
+
+# Plot the df object with the mean of bail amount per race and action type for judge Joseph O'Neill and scale for max amount in table above. No mean was over $150,000 dollars so plotted for max $150,000 dollars. 
+```{r}
+JO7 <- ggplot(data = df, aes(x = factor(action_type_name), y = mean_total_amount, fill = race )) +
+   coord_flip() +
+   geom_col(position="dodge", color="black") +
+  labs(title = "Judge: Joseph O'Neill", subtitle = "Municipal Court", caption = "Mean bail amount for all years judge has been in office grouped by race and action type.", x = "Action Type", y = "Mean Bail Amount")
+
+JO7 + scale_y_continuous(limits = c(0, 150000))
+```
+
+New Section-3 
+
+#Fix the spacing for the x-axis by repositioning the legend to the bottom using theme. NOTE:Use theme to change the way plot looks. 
+
+```{r}
+
+JO6 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = factor(race))) +
+   coord_flip() +
+   #geom_col(position="dodge", color="black") +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+   facet_wrap(~action_type_name, scales = "free") +
+  theme(legend.position="bottom") +
+  labs(title = "Judge:Joseph O'Neill 2009-2010", caption = "Viewing bail amount upto 1 million dollars only", subtitle = "Track record for 2 years (2009-2010)", x = "Season", y = "Bail Amount")
+
+JO6 + scale_y_continuous(limits = c(0, 1000000))
+```
+
+
+
+
+
+
+
+
 
 
 
