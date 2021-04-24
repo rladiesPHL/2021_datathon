@@ -72,6 +72,19 @@ data_list <- lapply(od_file_paths, function(x) readr::read_csv(x, col_types = od
 
 # sapply(data_list, names)
 
+# To debug - merged these into one file and look at the docket_ids compared the the main file
+# od <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions.csv',
+#                       col_types = odcols)
+# od_from_split <- bind_rows(data_list)
+# n_distinct(od_from_split$docket_id)
+# n_distinct(od$docket_id)
+# in_full <- setdiff(od$docket_id, od_from_split$docket_id) #4200
+# in_split <- setdiff(od_from_split$docket_id, od$docket_id) #EMPTY
+# 
+# weird_cases <- filter(od, docket_id %in% in_full) %>% 
+#   left_join(ddd)
+# 
+# weird_cases %>% count(lubridate::year(arrest_date))
 # 3 ----
 ddd_file_paths <- c(
   "https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details_2010_2011.csv",   "https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details_2012_2013.csv",

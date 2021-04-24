@@ -12,7 +12,7 @@ Find repeat defendants using unique defendant ids matched to their corresponding
 
 https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_ids.csv
 
-### Offenses and disposition info
+### Offenses and disposition info (original)
 
 All years:
 
@@ -31,6 +31,48 @@ https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_2
 https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_2018_2019.csv
 
 https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_2020.csv
+
+### Offenses and disposition info (v2)
+
+This v2 has the statute name added in... and 4 more rows than the original, for reasons Joy hasn't tracked down yet.
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2.csv
+
+By two year periods:
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2010_2011.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2012_2013.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2014_2015.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2016_2017.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2018_2019.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v2_2020.csv
+
+
+### Offenses and disposition info (v3)
+
+Add credit for time served
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3.csv
+
+By two year periods:
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2010_2011.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2012_2013.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2014_2015.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2016_2017.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2018_2019.csv
+
+https://storage.googleapis.com/jat-rladies-2021-datathon/offenses_dispositions_v3_2020.csv
+
 
 ### Defendant and docket info
 

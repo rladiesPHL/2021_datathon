@@ -2,7 +2,7 @@
 
 The 2021 RLadies Philly datathon aims to connect and enable R enthusiasts in the Philadelphia region (and beyond!) to learn and collaborate while also making a difference in the broader Philadelphia community. This year, we have partnered with the Judge Accountability Table (JAT) to explore judicial patterns in Philadelphia courts and better understand trends through data. Everyone is welcome to participate, and there is no minimum requirement for knowledge about the court system or R proficiency.  
 
-The [Judge Accountability Table (JAT)](https://judgeaccountabilitytable.org/) is a coalition of organizations working toward a shared mission of holding judicial candidates and judges accountable to our community’s vision of justice. The organizations of the JAT include: Reclaim Philadelphia, Project SAFE, Philadelphia DSA – LILAC, 215 People’s Alliance, Philadelphia Community Bail Fund, Youth Art and Self-Empowerment Project, Amistad Law Project, Coalition to Abolish Death By Incarceration (CADBI), The Center for Carceral Communities, ICE out of Courts, Pennsylvania Student Power Network, Make The Road Pennsylvania, DecarceratePA, Black Lives Matter Philadelphia. For this datathon, JAT have made available a dataset of de-identified information related to public court dockets for defendants in Philadelphia County, PA. We hope that this datathon will further their efforts to:
+The [Judge Accountability Table (JAT)](https://judgeaccountabilitytable.org/) is a coalition of organizations working toward a shared mission of holding judicial candidates and judges accountable to our community’s vision of justice. The organizations of the JAT include: Reclaim Philadelphia, Project SAFE, LILAC, 215 People’s Alliance, Philadelphia Community Bail Fund, Youth Art and Self-Empowerment Project, Amistad Law Project, Coalition to Abolish Death By Incarceration (CADBI), The Center for Carceral Communities, ICE out of Courts, Pennsylvania Student Power Network, Make The Road Pennsylvania, DecarceratePA, Black Lives Matter Philadelphia. For this datathon, JAT have made available a dataset of de-identified information related to public court dockets for defendants in Philadelphia County, PA. We hope that this datathon will further their efforts to:
 
 - Explore and describe this rich, messy data more completely (not only by answering specific questions, but also by discovering what additional information would be required to be able to answer these questions)
 - Understand best approaches to stratifying and analyzing data
@@ -13,15 +13,17 @@ The [Judge Accountability Table (JAT)](https://judgeaccountabilitytable.org/) is
 - **March 17, 2021, 6-8pm: [Kickoff Meetup](https://www.meetup.com/rladies-philly/events/276365040/):** 
     - First hour: R-Ladies and JAT intros, problem background, Q&A with partner
     - Second hour:  Logistics, data overview, breakout rooms by teams, where participants will be able to join a team and set up a plan of action
+    - [[Slides](https://docs.google.com/presentation/d/1iMutdI_1nyvegZ1lKVgd4EW4TguGAUMklNsFt--L8NU/edit?usp=sharing)]
+    - [[Recording](https://www.youtube.com/watch?v=sV4RylIrZ6w)]
 
 - **March 18 - April 19**: 
     - Teams work together using Slack, GitHub, and any other online platform of their choosing (zoom, google meet, etc.). RLadies Philly organizers can set up meetings for teams by request (just contact us on Slack!)
-    - Questions to JAT will be compiled into an ongoing Google Doc that will be shared with JAT; JAT will answer questions asynchronously; RLadies Philly organizers will be available on Slack to answer any non-JAT questions
+    - Questions to JAT will be compiled into an ongoing [Google Doc](https://docs.google.com/document/d/1UdI0oRUrbXchwpvy8b0CZcKv_3rgBV0YUF1cUix2lyo/edit?usp=sharing) that will be shared with JAT; JAT will answer questions asynchronously; RLadies Philly organizers will be available on Slack to answer any non-JAT questions
     - While we recommend weekly meetings for teams, teams have the flexibility to set up their workflow as they see fit
 
  - **April 20:** 
-     - Teams should finalize their work and draft a short presentation (approx. 10-15 mins; TBA) of their most important findings for JAT (see [presentation guidelines and template](NEED TO CREATE AND UPDATE)
-     - Final reports should be drafted (see [final report guidelines and template](NEED TO CREATE AND UPDATE)
+     - Teams should finalize their work and draft a short presentation (approx. 10-15 mins; TBA) of their most important findings for JAT (see [presentation guidelines and template](https://github.com/rladiesPHL/2021_datathon/tree/main/administrative)
+     - Final reports should be drafted (see [final report guidelines and template](https://github.com/rladiesPHL/2021_datathon/tree/main/administrative)
 
 - **April 28, 2021, 6-8pm: [Conclusion Meetup](https://www.meetup.com/rladies-philly/events/276365054/):** 
     - Teams will present their results and discuss their experiences. Each team will have the freedom to choose one or more group members to present the team's results, or to request that an R-Ladies Philly organizer presents the team's results if no group members are available to present. The latter option requires some advance coordination.
@@ -100,7 +102,7 @@ R-Ladies is dedicated to providing a harassment-free experience for everyone. We
 
 If you weren't able to attend our [Kick-off Meetup](https://www.meetup.com/rladies-philly/events/276365040/), here's how to get involved:
 
-1. Watch the kickoff event video (link to be posted) and take a look at the slides introducing the project (link to follow)
+1. Watch the kickoff event [video](https://youtu.be/sV4RylIrZ6w) and take a look at the [slides](https://docs.google.com/presentation/d/1iMutdI_1nyvegZ1lKVgd4EW4TguGAUMklNsFt--L8NU/edit?usp=sharing) introducing the project
 2. Take a look at the [github repo](https://github.com/rladiesPHL/2021_datathon) for the project. Read the [readme](README.md)!
 3. If you don’t already have one, create a [github account](https://github.com/join) (see our [github workflow recommendations](https://docs.google.com/document/d/1vF7uWo2ITXcifyNoLd8ZTJdNPx0Pd4eXXrdkKVfbAkY/edit?usp=sharing)).
 4. If you haven’t already, install [R](https://www.r-project.org/) and [R-Studio](https://www.rstudio.com/products/rstudio/download/#download) on your computer.
