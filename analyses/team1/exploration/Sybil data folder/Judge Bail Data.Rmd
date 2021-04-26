@@ -327,7 +327,7 @@ df3
 JO9 <- ggplot(data = df3, aes(x = action_type_name, y = counts, fill = gender)) +
    coord_flip() +
    geom_col(position="dodge", color="black") +
-  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count")
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by gender.", x = "Action Type", y = "Count")
 
  ggplotly(JO9 + scale_y_continuous(limits = c(0, 15000)))
 ```
