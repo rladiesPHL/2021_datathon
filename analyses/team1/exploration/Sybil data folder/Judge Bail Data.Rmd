@@ -14,8 +14,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggplot2)
+library(plotly)
 library(tibble)
 library(scales)
+library(sf)
 #require(scales)
 ```
 
@@ -74,6 +76,7 @@ newjatdata2$month <- cut(newjatdata2$month, breaks=c(0, 2, 3, 4, 5, 6, 7, 8, 9, 
 ```{r}
 #remove rows with NA
 completerecords <- na.omit(newjatdata2)
+#na.fail(completerecords)  # trust, but verify!
 ```
 
 ```{r}
@@ -98,6 +101,7 @@ completerecords$action_type_name <- as.factor(completerecords$action_type_name)
 
 completerecords$year <- as.factor(completerecords$year)
 ```
+
 
 ```{r}
 is.factor(completerecords$action_type_name)
@@ -182,7 +186,6 @@ JO2 <- ggplot(data = plot2JO, aes(x = factor(month), y = total_amount, fill = fa
   coord_flip() +
   geom_col(position="dodge", color="black") +
   facet_wrap(~action_type_name) +
-  theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill", x = "Season", y = "Bail Amount")
 
 JO2 + scale_y_log10()
@@ -194,7 +197,6 @@ JO <- ggplot(data = plot2JO, aes(x = factor(month), y = total_amount, fill = fac
   coord_flip() +
   geom_col(position="dodge", color="black") +
   facet_wrap(~year + action_type_name) +
-  theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill", x = "Season", y = "Bail Amount")
 
 JO + scale_y_log10()
@@ -212,7 +214,7 @@ JO3 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = fa
   geom_col(position="dodge", color="black") +
    facet_wrap(~action_type_name) +
   theme(legend.position="bottom") +
-  labs(title = "Judge:Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
+  labs(title = "Judge: Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
 
 JO3 + scale_y_log10()
 
@@ -230,8 +232,11 @@ JO5 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = fa
   theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
 
-JO5 + scale_y_continuous(limits = c(0, 1000000))
+ggplotly(JO5 + scale_y_continuous(limits = c(0, 1000000)), tooltip = c("y", "x")) %>%
+  layout(legend = list(orientation = 'h', x=0.1, xanchor="bottom", yanchor="center", y=-0.3))
+
 ```
+
 
 ```{r}
 JO4 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = factor(race))) +
@@ -241,12 +246,13 @@ JO4 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = fa
   theme(legend.position="bottom") +
   labs(title = "Judge:Joseph O'Neill 2009-2010", x = "Season", y = "Bail Amount")
 
-JO4 + scale_y_continuous(limits = c(0, 1000000))
+ggplotly(JO4 + scale_y_continuous(limits = c(0, 1000000)), tooltip = c("y", "x")) %>%
+  layout(legend = list(orientation = 'h', x=0.1, xanchor="bottom", yanchor="center", y=-0.3)) 
 ```
 
 New Section-2
 
-#Grouping by race & action type then taking mean bail amount for each judge based off those groupings. Plot this information using ggplot. 
+#Grouping by race & action type then taking mean bail amount for each judge based off those groupings. Plot this information using ggplot. Example code below. 
 ```{r}
 df <- completerecords %>%
   group_by(race, action_type_name) %>%
@@ -265,7 +271,7 @@ JO7 <- ggplot(data = df, aes(x = factor(action_type_name), y = mean_total_amount
    geom_col(position="dodge", color="black") +
   labs(title = "Judge: Joseph O'Neill", subtitle = "Municipal Court", caption = "Mean bail amount for all years judge has been in office grouped by race and action type.", x = "Action Type", y = "Mean Bail Amount")
 
-JO7 + scale_y_continuous(limits = c(0, 150000))
+ ggplotly(JO7 + scale_y_continuous(limits = c(0, 150000)))
 ```
 
 New Section-3 
@@ -285,7 +291,46 @@ JO6 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = fa
 JO6 + scale_y_continuous(limits = c(0, 1000000))
 ```
 
+New Section-4 
 
+#Plot count of action type per judged grouped by race
+```{r}
+df2 <- completerecords %>% 
+  group_by(race, action_type_name) %>%
+  filter(factor(Judge) ==  "Rayford Means") %>% 
+  summarise(counts = n()) %>%
+  mutate(race=fct_reorder(race, counts))
+df2
+```
+
+```{r}
+JO8 <- ggplot(data = df2, aes(x = action_type_name, y = counts, fill = race )) +
+   coord_flip() +
+   geom_col(position="dodge", color="black") +
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count")
+
+ ggplotly(JO8 + scale_y_continuous(limits = c(0, 15000)))
+```
+
+#Plot count of action type per judged grouped by gender
+```{r}
+df3 <- completerecords %>% 
+  group_by(gender, action_type_name) %>%
+  filter(factor(Judge) ==  "Rayford Means") %>% 
+  summarise(counts = n()) %>%
+  mutate(gender=fct_reorder(gender, counts))
+df3
+```
+
+
+```{r}
+JO9 <- ggplot(data = df3, aes(x = action_type_name, y = counts, fill = gender)) +
+   coord_flip() +
+   geom_col(position="dodge", color="black") +
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count")
+
+ ggplotly(JO9 + scale_y_continuous(limits = c(0, 15000)))
+```
 
 
 
