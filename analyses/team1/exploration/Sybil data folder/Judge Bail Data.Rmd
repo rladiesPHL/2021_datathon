@@ -17,9 +17,15 @@ library(ggplot2)
 library(plotly)
 library(tibble)
 library(scales)
-library(sf)
+library(gridExtra)
+library(gapminder)
 #require(scales)
 ```
+
+```{r}
+newdefdocid <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_ids.csv')
+```
+
 
 ```{r}
 defdoc <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/defendant_docket_details.csv')
@@ -27,6 +33,12 @@ defdoc <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datat
 
 ```{r}
 baildata <- readr::read_csv('https://storage.googleapis.com/jat-rladies-2021-datathon/bail.csv')
+```
+
+#Make new dataset with variables that I need.
+```{r}
+# Select variables of interest and create new datset
+newdefdocid2 <- select(newdefdocid, defendant_id, docket_id)
 ```
 
 ```{r}
@@ -43,11 +55,17 @@ baildata2 <- select(baildata, docket_id, action_date, action_type_name, total_am
 # turn to tibble 
 as_tibble(baildata2)
 as_tibble(defdoc2)
+as_tibble(newdefdocid2)
 ```
 
 ```{r}
 # Create new dataset by merging both datasets
-jatdata2 <- merge(defdoc2, baildata2, by="docket_id")
+ jatdata1 <- merge(newdefdocid3, defdoc3, by="docket_id")
+```
+
+```{r}
+# Create new dataset by merging both datasets
+jatdata2 <- merge(jatdata1, baildata2, by="docket_id")
 ```
 
 ```{r}
@@ -72,6 +90,7 @@ newjatdata2$year <- cut(newjatdata2$year, breaks=c(0, 2005, 2007, 2009, 2011, 20
 
 newjatdata2$month <- cut(newjatdata2$month, breaks=c(0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13), labels=c("Winter", "Winter", "Spring", "Spring", "Spring", "Summer", "Summer", "Summer", "Fall", "Fall", "Fall", "Winter"), right = FALSE)
 ```
+
 
 ```{r}
 #remove rows with NA
@@ -117,19 +136,20 @@ saveRDS(completerecords, file = "new_bail_data.rds")
 #facetwrap by both year and action type
 ```{r}
 plot <- completerecords  %>% 
-filter(factor(Judge) ==  "Marsha Neifield" )
+filter(factor(Judge) ==  "Marsha Neifield" ) %>%
+group_by(race) 
 
 
 
 MN <- ggplot(data = plot, aes(x = factor(month), y = total_amount, fill = factor(race))) +
-  geom_col(position="dodge", color="black") +
+  geom_col(position="identity", color="black") +
   facet_wrap(~year + action_type_name) +
   labs(title = "Judge:Marsha Neifield", x = "Season", y = "Bail Amount")
 
 MN + scale_y_log10()
 
 ```
-#facetwrap by year 
+#facetwrap by year  geom_col(position could = dodge, identity
 ```{r}
 MN1 <- ggplot(data = plot, aes(x = factor(month), y = total_amount, fill = factor(race))) +
   geom_col(position="dodge", color="black") +
@@ -165,7 +185,6 @@ MN3 + scale_y_log10()
 ```
 
 #Judge Joseph O'Neill
-
 #use coord_flip() and facetwrap by year 
 ```{r}
 plot2JO <- completerecords  %>%
@@ -304,12 +323,12 @@ df2
 ```
 
 ```{r}
-JO8 <- ggplot(data = df2, aes(x = action_type_name, y = counts, fill = race )) +
+RM8 <- ggplot(data = df2, aes(x = action_type_name, y = counts, fill = race )) +
    coord_flip() +
    geom_col(position="dodge", color="black") +
   labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count")
 
- ggplotly(JO8 + scale_y_continuous(limits = c(0, 15000)))
+ ggplotly(RM8 + scale_y_continuous(limits = c(0, 15000)))
 ```
 
 #Plot count of action type per judged grouped by gender
@@ -324,25 +343,79 @@ df3
 
 
 ```{r}
-JO9 <- ggplot(data = df3, aes(x = action_type_name, y = counts, fill = gender)) +
+RM9 <- ggplot(data = df3, aes(x = action_type_name, y = counts, fill = gender)) +
    coord_flip() +
    geom_col(position="dodge", color="black") +
   labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by gender.", x = "Action Type", y = "Count")
 
- ggplotly(JO9 + scale_y_continuous(limits = c(0, 15000)))
+ ggplotly(RM9 + scale_y_continuous(limits = c(0, 15000)))
+```
+
+New Section-5
+
+#Getting super granular with bail data. Looking at the action types(inc/dec bail amounts) based on frequency of docket id and down to defendant id. 
+```{r}
+df4 <- completerecords %>% 
+  group_by(docket_id, race, action_type_name) %>%
+  filter(factor(Judge) ==  "Rayford Means") %>% 
+  summarise(counts = n(),  ) %>%
+  mutate(race=fct_reorder(race, counts))
+df4
+```
+
+```{r}
+RM10 <- ggplot(data = df4, aes(x = action_type_name, y = counts,  fill = race)) +
+   coord_flip() +
+   geom_point(position= position_jitterdodge(), pch = 21) +
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count Per Docket ID")
+
+ ggplotly(RM10 + scale_y_continuous(limits = c(0, 50)))
 ```
 
 
+```{r}
+df5 <- completerecords %>% 
+  group_by(defendant_id, race, action_type_name) %>%
+  filter(factor(Judge) ==  "Rayford Means") %>% 
+  summarise(counts = n()) %>%
+  mutate(race=fct_reorder(race, counts))
+df5
+```
 
 
+```{r}
+RM11 <- ggplot(data = df5, aes(x = action_type_name, y = counts,  fill = race)) +
+   coord_flip() +
+   geom_point(pch = 21, position = position_jitterdodge()) +
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count Per Defendant ID")
+
+ ggplotly(RM11 + scale_y_continuous(limits = c(0, 250)))
+```
 
 
+```{r}
+chk <- df5 %>%
+filter(factor(action_type_name) %in% c("Decrease Bail Amount",  "Increase Bail Amount") & race == "Black")
+chk
+```
+
+```{r}
+RM12 <- ggplot(data = chk, aes(x = action_type_name, y = counts,  fill = race, text =      paste("defendant id:", defendant_id))) +
+   coord_flip() +
+   geom_point(position= position_jitterdodge(), pch = 21) +
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Decrease & Increase Bail counts grouped by Race = Blacks.", x = "", y = "Count Per Defendant ID")
+
+ ggplotly(RM12 + scale_y_continuous(limits = c(0, 50)))
+```
+
+```{r}
+orca(b, file = "bail.png")
+```
 
 
+```{r}
+b <- plotly::ggplotly(RM12 + scale_y_continuous(limits = c(0, 250)))
 
-
-
-
-
-
+htmlwidgets::saveWidget(b, "bail.html")
+```
 
