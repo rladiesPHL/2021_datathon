@@ -131,13 +131,13 @@ pal <- colorBin( # generating bins of colors
 )
 
 # generating the map
-leaflet() %>%
+before_map <- leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = before_merged,
     fillColor = ~ pal(total),
     color = "#b2aeae", # you need to use hex colors
-    fillOpacity = 0.7,
+    fillOpacity = 0.9,
     weight = 1,
     smoothFactor = 0.2,
     popup = popup
@@ -147,7 +147,9 @@ leaflet() %>%
     values = before_merged$total,
     position = "bottomright",
     title = "Number of charges"
-  ) # ,
+  ) 
+
+mapshot(before_map, file = "before_updated_legend.png")
 ```
 
 ## Mapping Number of Charges After Krasner Took Office
@@ -179,13 +181,13 @@ pal <- colorBin(
 )
 
 # making the map
-leaflet() %>%
+after_map <- leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = after_merged,
     fillColor = ~ pal(total),
     color = "#b2aeae", # you need to use hex colors
-    fillOpacity = 0.7,
+    fillOpacity = 0.9,
     weight = 1,
     smoothFactor = 0.2,
     popup = popup
@@ -196,6 +198,8 @@ leaflet() %>%
     position = "bottomright",
     title = "Number of charges"
   )
+
+mapshot(after_map, file = "after_updated_legend.png")
 ```
 
 ## Mapping changes in number of cases and % change between periods
@@ -245,8 +249,10 @@ changes_map <- leaflet() %>%
     values = changes_merged$change,
     position = "bottomright",
     title = "Change in number of charges"
-  )
+  ) 
+
 changes_map
+
 
 mapshot(changes_map, file = "changes_map.png")
 ```
