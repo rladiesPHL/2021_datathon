@@ -1,0 +1,274 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Exploring the `grades` column.
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(rprojroot))
+```
+
+```{r}
+source(file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                 "analyses", "team2", "preprocess", "ec_functions.R"))
+```
+
+
+In this notebook I'm only going to examine data that are present in the `offenses_dispositions` data file. 
+
+```{r}
+dispositions <- read_csv(file.path(find_root(is_rstudio_project), "data",
+                                   "offenses_dispositions_v3_periods.csv"),
+                         col_types = cols(
+  X1 = col_double(),
+  docket_id = col_double(),
+  description = col_character(),
+  statute_description = col_character(),
+  statute_name = col_character(),
+  sequence_number = col_double(),
+  grade = col_character(),
+  disposition = col_character(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  disposing_authority__title = col_character(),
+  disposing_authority__document_name = col_character(),
+  disposition_method = col_character(),
+  min_period = col_character(),
+  max_period = col_character(),
+  period = col_character(),
+  credit = col_double(),
+  sentence_type = col_factor(levels = c("No Further Penalty",
+                                        "Merged",
+                                        "Probation",
+                                        "IPP",
+                                        "Confinement")),
+  min_period_parsed = col_character(),
+  max_period_parsed = col_character(),
+  min_period_days = col_double(),
+  max_period_days = col_double()
+))
+```
+
+I began the analysis by limiting the data to sentencing by judges who are currently serving in Philadelphia County. The list of active judges was pulled from Ballotpedia (https://ballotpedia.org/Philadelphia_County,_Pennsylvania_(Judicial)).
+```{r}
+#only filter for 'Denis Cohen'
+#there are two Powells
+
+current_judges_last <- 'Anders
+Anhalt
+Brandeis-Roman 
+Bright
+Brinkley
+Bronson
+Butchart
+Campbell
+Carpenter
+Cianfrani
+Clemons
+Cohen
+Coleman
+Colins
+Covington
+Coyle
+Cunningham
+DeFino-Nastasi
+DiClaudio
+Djerassi
+Dumas
+Ehrlich
+Erdos
+Frazier-Clemons
+Geroff
+Kane
+New 
+O\'Keefe
+Olszewski
+Padova
+Palumbo
+Patrick
+Pechkurow
+Perez
+Powell
+Powell
+Rebstock
+Robbins
+Sawyer
+Schulman
+Schultz
+Scott
+Shaffer
+Shirdan-Harris
+Shreeves-Johns
+Street
+Tereshko
+Tsai
+Tucker
+Woelpper
+Woods-Skipper
+Wright
+Wright Padilla'
+
+current_judges_first <- 'Daniel
+Diana
+Tracy
+Gwendolyn
+Genece
+Glenn
+Ann
+Giovanni
+Linda
+Deborah
+Lucretia
+Denis
+Robert
+Mary
+Roxanne
+Anne Marie
+Charles
+Rose
+Scott
+Ramy
+Lori
+Charles
+Michael
+Brenda
+Steven
+Harold
+Shelley
+J.
+Walter
+John
+Frank
+Paula
+Doris
+Mia
+Kenneth
+Crystal
+Robert
+Harvey
+Stephanie
+Susan
+Jennifer
+Kai
+Zac
+Lisette
+Karen
+Sierra
+Allan
+Stella
+Leon
+Donna
+Sheila
+Edward
+Nina'
+
+last_names <- str_split(current_judges_last, pattern='\n')[[1]]
+first_names <- str_split(current_judges_first, pattern='\n')[[1]]
+current_judges <- data.frame(x=last_names, y=first_names)
+#Denis Cohen
+```
+After creating a list of active judges, I grouped the data by judge.
+```{r}
+by_judge <- dispositions %>%
+  filter(!is.na(disposing_authority__first_name)) %>%
+  filter(!is.na(disposing_authority__last_name)) %>%
+  filter(disposing_authority__last_name %in% as_vector(current_judges['x'])) %>%
+  filter(disposing_authority__first_name %in% as_vector(current_judges['y'])) %>%
+  group_by(disposing_authority__last_name, disposing_authority__first_name)
+```
+
+To compare sentencing patterns among judges currently serving, I looked at top five most common crimes for which the judges have issued sentencing. The top five most common were 1. possession with intent to deliver/manufacture, 2. aggravated assault, 3. conspiracy to manufacture, deliver or possess with intent to manufacture or deliver, 4. simple assault, 5. firearms not to be carried without a license.
+
+The boxplots serve as a visualisation of sentencing differences among judges. (Judges who have issued fewer than 100 rulings were removed from the boxplot.) The boxplots showed that Judge Coyle issued longer than average sentences for all five common charges. Judges Bronson, Cunningham, Ehrlich and O'Keefe also gave defendants longer than average sentences for the two charges of firearms not to be carried without license.
+```{r most common crimes} 
+by_count_5 <- by_judge %>%
+  filter(!is.na(max_period_days)) %>%
+  group_by(description) %>%
+  summarise(count=n()) %>% 
+  slice_max(order_by = count, n = 5)
+
+most_common <- by_count_5$description
+
+for (crime in most_common) {
+  #aggregate further by offence for judges who issued > 100 sentences for given offence
+  sentencing <- by_judge %>%
+    filter(description == crime) %>%
+    filter(!is.na(max_period_days)) %>%
+    filter(n() > 100) 
+  print(ggplot(sentencing, aes(x = disposing_authority__last_name, 
+                               y = max_period_days)) + geom_boxplot() + geom_hline(aes(yintercept=mean(sentencing$max_period_days), color="mean"), linetype="dashed") + scale_color_manual(name='Statistics', values = c(mean = "blue")) + labs(x='Judge name', y='Sentencing period (in days)', title=sprintf('Sentencing for %s', tolower(crime))) + coord_flip())
+  #file_name = sprintf('%s.png', substr(crime, 1, 10))
+  #ggsave(file_name)
+}
+```
+However, the duration of sentencing alone does not provide a complete picture. We can also examine another measure of sentencing harshness by looking at which judges are more likely to give prison sentences to the defendants. While Judge Coyle is among judges more likely to sentence defendants to prison rather than probation, we also observe multiple judges above the average.
+```{r percent stacked barplot for top 5 offenses}
+for (crime in most_common) {
+  probation_or_confinement <- by_judge %>% 
+    filter(description == crime) %>%
+    filter(sentence_type %in% c('Confinement', 'Probation')) %>% 
+    filter(n() > 100) %>%
+    group_by(disposing_authority__last_name, sentence_type) %>% 
+    summarise(count=n())
+
+  print(ggplot(probation_or_confinement, aes(fill=sentence_type, y=count, x=disposing_authority__last_name)) + geom_bar(position="fill", stat="identity") + labs(title=sprintf('Probation or prison? \n Sentencing type for %s', tolower(crime)), x='Judge', y='Frequency') + geom_hline(aes(yintercept=sum(probation_or_confinement[probation_or_confinement$sentence_type == 'Confinement', ]$count) / sum(probation_or_confinement$count), color="mean"), linetype="dashed") + scale_color_manual(name='Statistics', values = c(mean = "blue")) + scale_fill_manual(values = c("light gray", "dark red")) +
+    coord_flip())
+}
+```
+
+The following boxplots shows sentencing patterns for misdemeanors. While there was no significant differences in the mean sentencing period, judges Powell, Robbins and Sawyer appeared to be the most lenient. On the other hand, Judges Coyle, Cunningham and DeFino-Nastasi showed a tendency to issue longer sentences.
+```{r misdemeanors}
+#only count judges with more than 100 sentences for misdemeanor charges
+misdemeanors <- c('M', 'M1', 'M2', 'M3')
+by_judge_misdemeanor <- by_judge %>% 
+  filter(grade %in% misdemeanors) %>%
+  filter(!is.na(max_period_days)) %>%
+  filter(n() > 100)
+  
+ggplot(by_judge_misdemeanor, aes(x = disposing_authority__last_name, y=max_period_days)) + geom_boxplot() + geom_hline(aes(yintercept=mean(max_period_days), color="mean"), linetype="dashed") + scale_color_manual(name='Statistics', values = c(mean = "blue")) + labs(x='Judge', y='Sentencing period (in days)', title='Sentencing for misdemeanors') + coord_flip()
+#ggsave('misdemeanors.png')
+```
+
+We again see which judges are more likely to sentence defandants to prison for misdemeanors. We again see similar patterns, with Judge Bronson sentencing defendants to prison far more often than other judges.
+```{r probation or confinement}
+#for types of sentencing
+probation_or_confinement_misdemeanor <- by_judge_misdemeanor %>% 
+  filter(sentence_type %in% c('Probation', 'Confinement')) %>% 
+  group_by(disposing_authority__last_name, sentence_type) %>% 
+  summarise(count=n())
+
+ggplot(probation_or_confinement_misdemeanor, 
+       aes(fill=sentence_type, y=count, x=disposing_authority__last_name)) + geom_bar(position="fill", stat="identity") + labs(title='Probation or prison?', x='Judge', y='Frequency') + geom_hline(aes(yintercept=sum(probation_or_confinement_misdemeanor[probation_or_confinement_misdemeanor$sentence_type == 'Confinement', ]$count) / sum(probation_or_confinement_misdemeanor$count), color="mean"), linetype="dashed") + scale_color_manual(name='Statistics', values = c(mean = "blue")) + scale_fill_manual(values = c("light gray", "dark red")) +
+  coord_flip()
+```
+
+```{r felonies}
+felony_grades <- c('F', 'F1', 'F2', 'F3')
+by_judge_felony <- by_judge %>%
+  filter(grade %in% felony_grades) %>%
+  filter(!is.na(max_period_days)) %>%
+  filter(n() > 100)
+
+by_judge_felony %>% 
+  ggplot(aes(x = disposing_authority__last_name, y=max_period_days)) + geom_boxplot() +
+  geom_hline(aes(yintercept=mean(max_period_days), color="mean"), linetype="dashed") + scale_color_manual(name='Statistics', values = c(mean = "blue")) + labs(x='Judge name', y='Sentencing period (in days)', title='Sentencing for felonies') + coord_flip()
+#ggsave('felonies.png')
+```
+The boxplot again shows Judge Coyle issuing longer than average sentencing. Judge DeFino-Nastasi issues the longest sentence on average for felony charges. Other judges issuing longer than average sentencing include judges Bright, Brinkley, Bronson, Cunningham, Geroff, Schulman and Shirdan-Harris.
+
+```{r}
+probation_or_confinement_felony <- by_judge_felony %>% 
+  filter(sentence_type %in% c('Probation', 'Confinement')) %>% 
+  group_by(disposing_authority__last_name, sentence_type) %>% 
+  summarise(count=n())
+
+ggplot(probation_or_confinement_felony, 
+       aes(fill=sentence_type, y=count, x=disposing_authority__last_name)) + geom_bar(position="fill", stat="identity") + labs(title='Probation or prison?', x='Judge', y='Frequency') + geom_hline(aes(yintercept=sum(probation_or_confinement_felony[probation_or_confinement_felony$sentence_type == 'Confinement', ]$count) / sum(probation_or_confinement_felony$count), color="mean"), linetype="dashed") + scale_color_manual(name='Statistics', values = c(mean = "blue")) + scale_fill_manual(values = c("light gray", "dark red")) +
+  coord_flip()
+```
+
+
+The analysis shows significant differences in sentencing patterns among judges. In particular, Judge Anne Marie Doyle has shown to issue longer sentencing for multiple charges. Judge Bronson also stood out for his tendency to sentence defendants to prison far more often than the rest.
