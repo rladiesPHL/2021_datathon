@@ -1,0 +1,286 @@
+---
+title: "Mapping"
+author: "Katrina Gutierrez"
+date: "4/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Mapping
+
+Goals:
+
+- make maps number of charges per census tract before and after DA Larry Krasner took office
+
+Resources I used: (these are here also for my personal reference)
+
+- Pulled data from here the DA's Office data website: https://data.philadao.com/download.html
+
+- Tutorial for how to make a map (I used the "easier" way at the bottom, and most of my code is pulled form this resource): http://zevross.com/blog/2015/10/14/manipulating-and-mapping-us-census-data-in-r-using-the-acs-tigris-and-leaflet-packages-3/#get-the-tabular-data-acs
+
+- Making natural breaks with jenks (optimizes natural break points especially for map data): https://medium.com/@traffordDataLab/lets-make-a-map-in-r-7bd1d9366098
+
+- Saving leaflet maps as images: https://aghaynes.wordpress.com/2018/05/21/saving-leaflet-maps/
+
+
+## Set Up
+
+I couldn't download a csv file from the website, so I had to copy and paste it into a notepad/excel file and save it as a csv.
+
+```{r }
+charges <- read.csv("offenses_by_census_track.csv")
+```
+
+```{r }
+library(tidyverse)
+library(lubridate)
+
+# I think these were explicitly for mapping
+library(acs)
+library(maptools)
+library(ggplot2)
+library(tigris)
+library(leaflet)
+library(stringr)
+library(mapview)
+
+# I think this one was for jenks
+library(classInt)
+
+# I got my API key online (see tutorial linked above)
+api.key.install(key = "ea4e958de821f0c12b71d1e9496755")
+```
+
+The charges data was originally weekly charges (by different types) for each week by census tract. I cleaned it up so that we would know "before" and "after" Krasner and the total number of charges for each time point.
+
+```{r }
+larry_date <- as.Date("2018-01-02")
+start_period_1 <- larry_date - period(2, "years")
+end_period_2 <- larry_date + period(2, "years")
+
+charges_cleaned <- charges %>%
+  mutate(date_value = mdy(date_value)) %>%
+  mutate(period = case_when(
+    between(date_value, start_period_1, larry_date) ~ "before",
+    between(date_value, larry_date, end_period_2) ~ "after",
+    TRUE ~ NA_character_
+  )) %>%
+  filter(!is.na(period))
+
+charges_cleaned <- charges_cleaned %>% mutate(total = rowSums(charges_cleaned[3:29]))
+```
+
+Creating a dataframe spatial information about Philly (County 101). Uncomment the plot to generate maps illustrating the spatial info about Philly.  We'll merge our data with "tracts" later to make all the maps.
+
+```{r }
+tracts <- tracts(state = "PA", county = c(101), cb = TRUE)
+# plot(tracts)
+```
+
+How did the total number of charges change before and after? cases went down by about 13%
+
+```{r }
+charges_cleaned %>%
+  group_by(period) %>%
+  summarise(
+    grand_total = sum(total)
+  )
+
+# cases went down by about 13%
+(75008 - 64952) / 75008
+```
+
+## Mapping Number of Charges Before Kranser
+
+Making a dataset with just the dates for the two years before Krasner.  The result only has columns for the census tract, period, and total number of charges. There is one row per tract.
+
+```{r }
+before <- charges_cleaned %>%
+  select(tract_GEOID10, period, total) %>%
+  filter(period == "before") %>%
+  group_by(tract_GEOID10) %>%
+  summarise(
+    period = first(period),
+    total = sum(total)
+  )
+```
+
+Here, I determine the breaks to cut the colors by for the map using jenks which optimizes natural break points for me.  The breaks (brks) show the cutoff points for the 5 groups.
+
+For comparison purposes, I'll use these same breaks for the "After" map too.
+
+```{r }
+classes <- classIntervals(before$total, n = 5, style = "jenks")
+classes$brks
+```
+
+Creating the map of charges by census tract before Kranser.  Most of this code is pulled from the tutorial linked above
+
+```{r }
+# merging tracts with the before data
+before_merged <- geo_join(tracts, before, "GEOID", "tract_GEOID10")
+
+popup <- paste0("GEOID: ", before_merged$GEOID, "<br>", "Number of charges", before_merged$total)
+pal <- colorBin( # generating bins of colors
+  bins = c(3, 185, 550, 1546, 2869, 6423), # input the jenks breaks here
+  palette = "YlGnBu",
+  domain = before_merged$total
+)
+
+# generating the map
+before_map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = before_merged,
+    fillColor = ~ pal(total),
+    color = "#b2aeae", # you need to use hex colors
+    fillOpacity = 0.9,
+    weight = 1,
+    smoothFactor = 0.2,
+    popup = popup
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = before_merged$total,
+    position = "bottomright",
+    title = "Number of charges"
+  )
+
+mapshot(before_map, file = "before_updated_legend.png")
+```
+
+## Mapping Number of Charges After Krasner Took Office
+
+Making a dataset with just the dates for the two years after Krasner took office.  The result only has columns for the census tract, period, and total number of charges. There is one row per tract.
+
+```{r }
+after <- charges_cleaned %>%
+  select(tract_GEOID10, period, total) %>%
+  filter(period == "after") %>%
+  group_by(tract_GEOID10) %>%
+  summarise(
+    period = first(period),
+    total = sum(total)
+  )
+```
+
+Creating the map of charges by census track after kranser.  Most of this code is pulled from the tutorial linked above
+
+```{r }
+# merging tracts with the after data
+after_merged <- geo_join(tracts, after, "GEOID", "tract_GEOID10")
+
+popup <- paste0("GEOID: ", after_merged$GEOID, "<br>", "Number of charges", after_merged$total)
+pal <- colorBin(
+  bins = c(3, 185, 550, 1546, 2869, 6423),
+  palette = "YlGnBu",
+  domain = after_merged$total
+)
+
+# making the map
+after_map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = after_merged,
+    fillColor = ~ pal(total),
+    color = "#b2aeae", # you need to use hex colors
+    fillOpacity = 0.9,
+    weight = 1,
+    smoothFactor = 0.2,
+    popup = popup
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = after_merged$total,
+    position = "bottomright",
+    title = "Number of charges"
+  )
+
+mapshot(after_map, file = "after_updated_legend.png")
+```
+
+## Mapping changes in number of cases and % change between periods
+
+Creating a dataset with the change in number of cases between periods as well as the percent change
+
+```{r }
+changes <- charges_cleaned %>%
+  select(date_value, tract_GEOID10, period, total) %>%
+  group_by(tract_GEOID10, period) %>%
+  summarise(
+    total = sum(total)
+  ) %>%
+  group_by(tract_GEOID10) %>%
+  summarise(
+    change = first(total) - last(total),
+    percent_change = (first(total) - last(total)) / last(total)
+  )
+```
+
+Making a map like we did with the first few.  This time colors indicate how much the number of charges increased or decreased by between the periods. For most of the census tracts, it's close to zero.  
+
+```{r }
+changes_merged <- geo_join(tracts, changes, "GEOID", "tract_GEOID10")
+
+popup <- paste0("GEOID: ", changes_merged$GEOID, "<br>", "Number of charges", changes_merged$change)
+# make vector of colors for values larger than 0 (6 colors)
+rc1 <- colorRampPalette(colors = c("#3CBC75FF", "white"), space = "Lab")(6)
+# make vector of colors for values larger than 0 (12 colors)
+rc2 <- colorRampPalette(colors = c("white", "#440154FF"), space = "Lab")(12)
+# combine color palettes
+pal <- colorNumeric(palette = c(rc1, rc2), domain = changes_merged$change)
+
+changes_map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = changes_merged,
+    fillColor = ~ pal(change),
+    color = "#b2aeae", # you need to use hex colors
+    fillOpacity = 0.9,
+    weight = 1,
+    smoothFactor = 0.2,
+    popup = popup
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = changes_merged$change,
+    position = "bottomright",
+    title = "Change in number of charges"
+  )
+
+changes_map
+
+
+mapshot(changes_map, file = "changes_map_updated_legend.png")
+```
+
+Making a graph, but this time for the % change. Once again, it's hard to interpet this. Although it might look like there were some major changes for some areas, some of these had a very low number of cases to begin with. 
+
+```{r }
+popup <- paste0("GEOID: ", changes_merged$GEOID, "<br>", "Number of charges", changes_merged$percent_change)
+pal <- colorNumeric(
+  palette = "YlOrRd",
+  domain = changes_merged$percent_change
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = changes_merged,
+    fillColor = ~ pal(percent_change),
+    color = "#b2aeae", # you need to use hex colors
+    fillOpacity = 0.7,
+    weight = 1,
+    smoothFactor = 0.2,
+    popup = popup
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = changes_merged$percent_change,
+    position = "bottomright",
+    title = "Percent Change in Number of charges"
+  )
+```
