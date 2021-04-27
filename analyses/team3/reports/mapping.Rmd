@@ -45,7 +45,7 @@ library(ggplot2)
 library(tigris)
 library(leaflet)
 library(stringr)
-library(mapview) 
+library(mapview)
 
 # I think this one was for jenks
 library(classInt)
@@ -89,8 +89,8 @@ charges_cleaned %>%
     grand_total = sum(total)
   )
 
-#cases went down by about 13%
-(75008	- 64952)	/ 75008
+# cases went down by about 13%
+(75008 - 64952) / 75008
 ```
 
 ## Mapping Number of Charges Before Kranser
@@ -147,7 +147,7 @@ before_map <- leaflet() %>%
     values = before_merged$total,
     position = "bottomright",
     title = "Number of charges"
-  ) 
+  )
 
 mapshot(before_map, file = "before_updated_legend.png")
 ```
@@ -239,7 +239,7 @@ changes_map <- leaflet() %>%
     data = changes_merged,
     fillColor = ~ pal(change),
     color = "#b2aeae", # you need to use hex colors
-    fillOpacity = 0.7,
+    fillOpacity = 0.9,
     weight = 1,
     smoothFactor = 0.2,
     popup = popup
@@ -249,12 +249,12 @@ changes_map <- leaflet() %>%
     values = changes_merged$change,
     position = "bottomright",
     title = "Change in number of charges"
-  ) 
+  )
 
 changes_map
 
 
-mapshot(changes_map, file = "changes_map.png")
+mapshot(changes_map, file = "changes_map_updated_legend.png")
 ```
 
 Making a graph, but this time for the % change. Once again, it's hard to interpet this. Although it might look like there were some major changes for some areas, some of these had a very low number of cases to begin with. 
