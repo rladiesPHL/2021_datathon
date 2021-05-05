@@ -1,0 +1,453 @@
+---
+title: "Random Coefficient Models"
+author: "Shanti Agung"
+date: "4/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This notebook is an attempt to model judge harshness using random effects model.
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+# Make sure the source file (docket details data) exists
+source_file <- file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                         "data", "docket_details.csv")
+stopifnot(file.exists(source_file))
+```
+
+
+```{r}
+# load dataset
+ddcols = cols(
+  docket_id = col_double(),
+  gender = col_character(),
+  race = col_character(),
+  date_of_birth = col_date(format = ""),
+  arrest_date = col_date(format = ""),
+  complaint_date = col_date(format = ""),
+  disposition_date = col_date(format = ""),
+  filing_date = col_date(format = ""),
+  initiation_date = col_date(format = ""),
+  status_name = col_character(),
+  court_office__court__display_name = col_character(),
+  current_processing_status__processing_status = col_character(),
+  current_processing_status__status_change_datetime = col_date(format = ""),
+  municipality__name = col_character(),
+  municipality__county__name = col_character(),
+  judicial_districts = col_character(),
+  court_office_types = col_character(),
+  court_types = col_character(),
+  representation_type = col_character(),
+  M = col_double(),
+  M3 = col_double(),
+  F1 = col_double(),
+  F3 = col_double(),
+  F2 = col_double(),
+  M1 = col_double(),
+  M2 = col_double(),
+  S = col_double(),
+  `F` = col_double(),
+  IC = col_double(),
+  H2 = col_double(),
+  H1 = col_double(),
+  S2 = col_double(),
+  S1 = col_double(),
+  S3 = col_double(),
+  judge_id = col_double(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  number_prior_dockets = col_double(),
+  total_confinement_days = col_double(),
+  max_confinement_days = col_double(),
+  age = col_double(),
+  court_types_cp = col_double(),
+  court_types_mc = col_double(),
+  court_types_pac = col_double(),
+  court_office_types_commonwealth = col_double(),
+  court_office_types_criminal = col_double(),
+  court_office_types_municipal = col_double(),
+  court_office_types_supreme = col_double(),
+  court_office_types_suprerior = col_double()
+)
+
+dockets <- readr::read_csv(source_file, col_types = ddcols)
+```
+
+
+## Subset data
+
+Subset data based on:
+* year: use dockets that are filed prior to 2020 (year 2010 - 2019)
+* status_name: use dockets that have status of "Closed" and "Adjudicated" (exclude: "Active" and "Inactive")
+* judge_id: use dockets that have non missing values in `judge_id` (exclude dockets that have missing values in judge names)
+
+
+```{r}
+dockets <- dockets %>% 
+  mutate(year = lubridate::year(filing_date),
+         month = lubridate::month(filing_date, label = TRUE, abbr = TRUE)) %>% 
+  filter(year < 2020) %>% 
+  filter(status_name %in% c("Closed", "Adjudicated")) %>% 
+  filter(!is.na(judge_id)) %>% 
+  filter(!is.na(total_confinement_days))
+```
+
+Subset variables for analysis.
+```{r}
+dockets_data <- dockets[,c("docket_id", "total_confinement_days", "max_confinement_days",
+                           "gender", "age","race","number_prior_dockets", "M", "M1", "M2", "M3",
+                           "F", "F1", "F2", "F3", "S", "S1", "S2", "S3", "IC", "H1", "H2",
+                           "court_types_cp", "court_types_mc", "court_types_pac", "year", "month",
+                           "judge_id")]
+```
+
+For now, drop observations with any missing data.
+
+```{r}
+dockets_data <- na.omit(dockets_data)
+```
+
+
+### Tidy variables
+
+```{r}
+glimpse(dockets_data)
+```
+
+Recode `gender`, `race`, `judge_id`, `court_types_cp`, `court_types_mc`, and `court_types_pac` into factors.
+
+```{r}
+gender_levels <- c("Female", "Male")
+race_levels <- c("Asian", "Asian/Pacific Islander", "Bi-Racial", "Black",
+                 "Native American/Alaskan Native", "Unknown/Unreported",
+                 "White")
+
+dockets_data <- dockets_data %>% 
+  mutate(gender = factor(gender, level = gender_levels),
+         race = factor(race, level = race_levels),
+         court_types_cp = factor(court_types_cp),
+         court_types_mc = factor(court_types_mc),
+         court_types_pac = factor(court_types_pac),
+         judge_id = factor(judge_id),
+         year = factor(year, ordered = TRUE))
+
+```
+
+
+```{r}
+glimpse(dockets_data)
+```
+
+
+## EDA on the subset data
+
+### cases
+Number of closed and adjudicated cases from 2010 to 2019
+```{r}
+dockets %>% 
+  ggplot(aes(x = as.factor(year))) +
+  geom_bar(aes(fill = status_name), position = "dodge")
+```
+Very few Adjudicated cases.
+
+```{r}
+dockets %>% 
+  count(status_name)
+```
+### judges
+
+How many judges are there?
+```{r}
+dockets_data %>% 
+  distinct(judge_id) %>% 
+  count()
+```
+
+Number of judges in each year
+```{r}
+dockets_data %>% 
+  distinct(judge_id, year) %>% 
+  ggplot(aes(x = year)) +
+  geom_bar()
+```
+
+Number of cases per judge
+```{r}
+dockets_data %>% 
+  count(judge_id) %>% 
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 200)
+```
+`n` in the above plot is the number of cases that a judge handles within the 2010-219 period. What is the few observations with n > 15000?
+
+```{r}
+dockets_data %>% 
+  count(judge_id) %>% 
+  rename(num_cases = n) %>% 
+  arrange(num_cases) %>% 
+  count(num_cases) %>% 
+  rename(num_judge_ids = n) %>%
+  arrange(num_cases)
+  
+```
+
+```{r}
+dockets_data %>% 
+  count(judge_id) %>% 
+  filter(n > 15000)
+```
+
+`judge_id` == 111 has 18017 cases
+
+```{r}
+dockets %>%
+  filter(judge_id == 111) %>% 
+  select(disposing_authority__last_name, disposing_authority__first_name, disposing_authority__middle_name)
+```
+
+### total confinement days
+
+How does the distribution of `total_confinement_days` look like?
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = total_confinement_days)) +
+  geom_histogram(binwidth = 700)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = total_confinement_days)) +
+  geom_histogram(binwidth = 500) +
+  coord_cartesian(ylim = c(0,100))
+```
+### max confinement days
+
+
+How does the distribution of `max_confinement_days` look like?
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = max_confinement_days)) +
+  geom_histogram(binwidth = 250)
+```
+
+### Age
+
+```{r}
+summary(dockets_data$age)
+```
+
+Some dockets have missing values for age, and the min age -1, uh-oh...
+
+```{r}
+dockets_data %>% 
+  arrange(age)
+```
+
+Three docket_ids have defendant that are less than 3 years old. Looking at dockets' original (raw) dataset, these entries seem to be data entry typo.
+
+```{r}
+dockets_data %>%
+  filter(age > 10) %>% 
+  ggplot(aes(x = age)) +
+  geom_histogram(binwidth = 4)
+```
+```{r}
+dockets_data %>%
+  filter(age > 10) %>% 
+  ggplot(aes(x = log(age))) +
+  geom_histogram()
+```
+
+### number_prior_dockets
+
+```{r}
+summary(dockets_data$number_prior_dockets)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets)) +
+  geom_histogram(binwidth = 3)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets)) +
+  geom_histogram(binwidth = 3) +
+  coord_cartesian(ylim = c(0, 2700))
+```
+### grade offenses
+```{r}
+summary(dockets_data$M1)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M1)) +
+  geom_histogram(binwidth = 3)
+```
+
+
+## Tidy variables again
+
+```{r}
+dockets_data <- dockets_data %>% 
+  filter(age > 10) %>%  # drop dockets with defendants' age < 10 years
+  mutate(number_prior_dockets_scaled = scale(number_prior_dockets),
+         grade_M_scaled = scale(M),
+         grade_M1_scaled = scale(M1),
+         grade_M2_scaled = scale(M2),
+         grade_M3_scaled = scale(M3),
+         grade_F_scaled = scale(`F`),
+         grade_F1_scaled = scale(F1),
+         grade_F2_scaled = scale(F2),
+         grade_F3_scaled = scale(F3),
+         grade_S_scaled = scale(S),
+         grade_S1_scaled = scale(S1),
+         grade_S2_scaled = scale(S2),
+         grade_S3_scaled = scale(S3),
+         grade_IC_scaled = scale(IC),
+         grade_H1_scaled = scale(H1),
+         grade_H2_scaled = scale(H2)
+         )
+```
+
+```{r}
+glimpse(dockets_data)
+```
+```{r}
+dockets_data %>% count(judge_id) %>% count()
+```
+
+
+## Random Effects Model
+
+```{r}
+library(lme4)
+```
+
+### Dependent variable: Total confinement days
+
+Model specification
+*Level 1* $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{47}x_{47} + e_{ij}$$
+
+
+*Level 2* $$\beta_{0j} = \beta_{0} + u_{0j}$$
+
+where $j  = \text{judge_id}$ and $x$s are the covariates.
+
+
+```{r}
+judge_total_intercept_model <- lmer(total_confinement_days ~ 1 + gender + race + log(age) +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+
+```{r}
+summary(judge_total_intercept_model)
+```
+```{r}
+ranef(judge_total_intercept_model)$judge_id
+```
+
+
+```{r}
+judge_total_ranef <- tibble(ranef(judge_total_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_total_ranef
+```
+
+
+```{r}
+judge_total_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(binwidth = 250, fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Docket total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+summary(judge_total_ranef$ranef_intercept)
+```
+
+Order judges on harshness from high to low.
+```{r}
+judge_total_ranef %>% 
+  arrange(desc(ranef_intercept))
+```
+
+
+```{r}
+dockets %>% 
+  filter(judge_id == 20) %>% 
+  select(disposing_authority__last_name, disposing_authority__first_name,
+         disposing_authority__middle_name)
+```
+
+
+### Dependent variable: Max confinement days
+
+```{r}
+judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + log(age) +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+
+```{r}
+judge_max_ranef <- tibble(ranef(judge_max_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+
+```
+
+```{r}
+judge_max_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(binwidth = 250, fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Docket max days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+Order judges on harshness from high to low.
+```{r}
+judge_max_ranef %>% 
+  arrange(desc(ranef_intercept))
+```
+
+
