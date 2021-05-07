@@ -29,7 +29,7 @@ We approached the problem in two ways: approach 1 and approach 2. Approach 1 is 
 
 Of the datasets that JAT provided, Approach 1 used the *offenses_dispositions_v3.csv* dataset. Data used were the average sentencing period by 50+ judges currently serving Philadelphia County, PA for top 5 most common charges, misdemeanors by degree and felonies by degree.
 
-In Approach 2, we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus unusual behavior, due to the pandemic. Further, we used cases that are completed. That is, docket’s status are: “Closed” or “Adjudicated”. We exclude ongoing cases --- that is, docket status is “Active” or “Inactive” --- because sentencing information in these cases may not reflect the full sentences once these cases are completed. The final dataset that we used to fit the model consists of approximately 176,712 dockets and 186 judges.
+In Approach 2, we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus likely unusual behavior too, due to the pandemic. Further, we used cases that are completed. That is, docket’s status is: “Closed” or “Adjudicated”. We excluded ongoing cases --- that is, docket status is “Active” or “Inactive” --- because sentencing information in these cases may not reflect the full sentences once these cases are completed. The final dataset that we used to fit the model consists of 176,712 dockets and 186 judges.
 
 ### Working definitions
 
