@@ -1,0 +1,51 @@
+---
+title: "Descriptive title of analysis"
+subtitle: "2021 RLadies Philly/JAT Datathon"
+author: "Team 2"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary (1 page)
+<span style="color:gray">*This section should have up to 5 bullet points summarizing the main conclusions from the analysis. These should be worded in such a way that people who are not data experts can easily understand what actions could be considered given the analysis results. *</span>
+
+## Contributors (1 page)
+
+<span style="color:gray">*This section should list the names and 1-2 sentence descriptions of everyone who worked on the submission. An example is listed below (please replace the example with your own info).*</span>
+
+**Gritty McGritty, MSc** is a data scientist with Philly's DataForGood nonprofit, and a student of applied statistics at DataIsLife University. In both roles, Gritty enjoys conducting predictive analyses and natural language processing.
+
+## Problem definition and dataset (1-2 pages)
+
+<span style="color:gray">*Summarize the research question/area your team has worked on.*</span>
+
+Our team focused on the problem of judge harshness. In particular, we attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses while others might be presented with cases of light offenses. Besides quantifying harshness, we also sought to answer whether some judges are harsher than others.
+
+We approached the problem in two ways: approach 1 and approach 2. Approach 1 is a visualization of sentencing patterns. Approach 2 is a statistical model known as random coefficient models. 
+
+Of the datasets that JAT provided, Approach 1 used the *offenses_dispositions_v3.csv* dataset. Data used were the average sentencing period by 50+ judges currently serving Philadelphia County, PA for top 5 most common charges, misdemeanors by degree and felonies by degree.
+
+In Approach 2, we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus unusual behavior, due to the pandemic. Further, we used cases that are completed. That is, docket’s status are: “Closed” or “Adjudicated”. We exclude ongoing cases --- that is, docket status is “Active” or “Inactive” --- because sentencing information in these cases may not reflect the full sentences once these cases are completed. The final dataset that we used to fit the model consists of approximately 176,712 dockets and 186 judges.
+
+### Working definitions
+
+*Include here any working definitions that you used (beyond what was outlined in the general description)*
+
+## Approach 2
+
+
+### Data issues
+
+*Include any issues or challenges that you noticed in the data, that may be relevant, and any actions taken*
+
+## Results (3-5 pages)
+
+<span style="color:gray">*You may structure this section in any way that makes results easier to understand and describe.*</span>
+
+## Conclusions and Next Steps (1 page)
+
+<span style="color:gray">*This section should have a bulletpoint list of what conclusions can be drawn from the analyses that were performed, and what next steps should be taken by JAT or anyone working in this area*</span>
