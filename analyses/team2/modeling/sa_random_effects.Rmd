@@ -409,6 +409,25 @@ dockets %>%
          disposing_authority__middle_name)
 ```
 
+#### Diagnostics: Total confinement days
+
+fitted vs. residual plot
+```{r}
+plot(judge_total_intercept_model, type = c("p", "smooth"))
+```
+Residual are not scattered evenly around zero along the the ranges of fitted values.
+
+scale-location plots
+```{r}
+plot(judge_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+Assumption of homoskedascity is violated.
+
+QQ plot
+```{r}
+lattice::qqmath(judge_total_intercept_model, id = 0.05)
+```
+Residuals are not normally distributed.
 
 ### Dependent variable: Max confinement days
 
@@ -450,4 +469,19 @@ judge_max_ranef %>%
   arrange(desc(ranef_intercept))
 ```
 
+#### Diagnostics: Max confinement days
 
+fitted vs. residual plot
+```{r}
+plot(judge_max_intercept_model, type = c("p", "smooth"))
+```
+
+scale-location plots
+```{r}
+plot(judge_max_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+QQ plot
+```{r}
+lattice::qqmath(judge_max_intercept_model, id = 0.05)
+```
