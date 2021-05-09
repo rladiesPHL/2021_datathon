@@ -29,18 +29,62 @@ We approached the problem in two ways: approach 1 and approach 2. Approach 1 is 
 
 Of the datasets that JAT provided, Approach 1 used the *offenses_dispositions_v3.csv* dataset. Data used were the average sentencing period by 50+ judges currently serving Philadelphia County, PA for top 5 most common charges, misdemeanors by degree and felonies by degree.
 
-In Approach 2, we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus likely unusual behavior too, due to the pandemic. Further, we used cases that are completed. That is, docket’s status is: “Closed” or “Adjudicated”. We excluded ongoing cases --- that is, docket status is “Active” or “Inactive” --- because sentencing information in these cases may not reflect the full sentences once these cases are completed. The final dataset that we used to fit the model consists of 176,712 dockets and 186 judges.
+In Approach 2, we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus likely unusual behavior too, due to the pandemic. Further, we used cases that are completed. That is, docket’s status is: “Closed” or “Adjudicated”. We excluded ongoing cases -- that is, docket status is “Active” or “Inactive” -- because sentencing information in these cases may not reflect the full sentences once these cases are completed. The final dataset that we used to fit the model consists of 176,712 dockets and 186 judges.
 
 ### Working definitions
 
 *Include here any working definitions that you used (beyond what was outlined in the general description)*
 
-## Approach 2
+#### Approach 2: Random coefficient models
 
+##### Docket as the unit of analysis
+
+Unit of analysis in this approach will be `docket_id` rather than offense. One reason is that judges often make sentencing decision by considering the overall bundle of offenses within a docket rather than per individual offense. For example, a lawyer friend whom we talked to explained that a judge would perceived an offense of stealing a car differently if that offense is the only offense in the docket versus if that offense is followed by other offenses like carrying illegal substances and carrying unlicensed firearms, for instance, in the stolen vehicle. In the later situation, a judge is likely to decide on a harsher sentence for the stolen vehicle offense.   
+
+Another consideration that made `docket_id` a reasonable unit of analysis is that some offenses' sentences are merged with that of other offenses, making sentencing attribution unidentifiable. If judges took this merged approach, the value of `sentence_type` variable in *offenses_dispositions_v3.csv* dataset is "Merged". From the dataset, we could not identify to which offense(s) that an offense was merged to. Further, we could not identify how much of the sentence is attributed to one offense versus to another. Identifying the sentence attributed to an offense is essential for offense to be the unit of analysis.   
+
+##### Outcome variables
+
+Metrics that we used to examine judge harshness, and to later construct outcome variables, is "days of confinement". A harsher judge is defined as a judge who gives longer days of confinement. In the *offenses_dispositions_v3.csv* dataset, an offense has five possible values of `sentence_type`: Confinement, IPP, Merged, No Further Penalty, and Probation.  Using our chosen metrics, the value of "days of confinement" is zero for sentence types other than "Confinement".
+
+Because our unit of analysis is a docket, the sentencing decision should also be at the docket level. Sentencing information in the dataset, however, is at the offense level. Therefore, we needed to aggregate the sentencing information from offense level into docket level. Ideally, we would have information on whether a sentence was carried out concurrently or consecutively. Since we do not have that information, we created two outcome variables: `total days of confinement` and `max days of confinement`.
+
+`total days of confinement` is the summation of days of confinement for offenses, in a docket, that received confinement sentences. By way of its construction, `total days of confinement` treats as if all sentences were executed consecutively. Another outcome variable is `max days of confinement`. It is the maximum of days of confinement for offenses, in that docket, that received confinement sentences. By way of its construction, this outcome variable treats as if all sentences were executed concurrently.
+
+As an example, if a docket has three offenses listed in which and one offense received 300 days of confinement, another offense received 200 days of confinement, and the other offense received 100 days of confinement. The docket's `total days of confinement` would be 600 days, while its `max days of confinement` would be 300 days. 
+
+##### Covariates
+
+We included defendant related covariates, specifically gender of the defendant, race, age, and the number of prior dockets. If a docket is the first case of a defendant, then the number of prior dockets is zero; if it is the second case for a defendant, then the number of prior dockets is one, and so on. The number of prior docket is deemed important in judges' sentencing decision. A lawyer informed us that an identical offense would receive a harsher sentence if the defendant has prior docket(s) than if the offense is within the defendant's first docket.  
+
+As mentioned in the problem definition, among the challenges when quantifying how harsh a judge is that judges are presented with different kinds of cases, such as differing offense severity within a case. To take into account this differing offense severity thus achieving a fair comparison between judges, we included covariates that reflect severity of offenses in a docket. For each severity grade, we counted the number of offenses in that docket that falls within that particular severity grade. That is, variable `F1` is the the number of grade F1 offenses in the docket; variable `F2` is the number of grade F2 offenses in the docket; variable `M1` is the number of grade M1 offenses in the docket, and so on.
+
+We included indicator whether the docket has been adjudicated at Pennsylvania Appellate Court, whether the docket has been adjudicated at Court of Common Pleas, and whether the docket has been adjudicated at Municipal Court. A lawyer friend explained that a case that is adjudicated at appellate court may have its sentence decisions reviewed back at the district court, or may have some of its sentences deemed inapplicable should a particular law was deemed inapplicable for the case -- all of which may affect the severity of the final sentencing decisions. 
+
+Finally, we included covariates of year and month to take into account possible seasonality and temporal pattern. 
+
+
+##### Model specification
+
+Random coefficient models are also known, among others, as multilevel models, hierarchical linear models, or mixed-effects models. We specified a simple model shown below.
+
+**Level 1:** $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{k}x_{k} + e_{ij}$$
+
+**Level 2:** $$\beta_{0j} = \beta_{0} + u_{0j}$$
+
+where  *i* = docket, and  *j* = judge.
+
+At level 1 equation, we have an outcome variable *y* defined for a given docket *i* nested within judge *j*. In this specification, the random coefficient is the intercept, $\beta_{0j}$. At level 2 equation, the random effect $u_{0j}$ allows each judge to have a unique intercept.
+
+We ran two models, in one model the outcome variable *y* is `total days of confinement`. In another model, the outcome variable *y* is `max days of confinement`. Both models included all covariates noted in the earlier subsection. For each model, we retrieved the estimates of random effect on intercept, $u_{0j}$.
+
+Higher values of random effect, $u_{0j}$, lead to higher values of the intercepts. Higher values of the intercepts means longer confinement sentences. Given our definition of harshness, longer confinement sentences indicate harsher judges.
 
 ### Data issues
 
 *Include any issues or challenges that you noticed in the data, that may be relevant, and any actions taken*
+
+### Issues in 
 
 ## Results (3-5 pages)
 
