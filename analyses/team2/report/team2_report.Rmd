@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 <span style="color:gray">*Summarize the research question/area your team has worked on.*</span>
 
-Our team focused on the problem of judge harshness. In particular, we attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses while others might be presented with cases of light offenses. Besides quantifying harshness, we also sought to answer whether some judges are harsher than others.
+Our team focused on the problem of judge harshness. We first attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses while others might be presented with cases of light offenses. Besides quantifying harshness, we also sought to answer whether some judges are harsher than others.
 
 We approached the problem in two ways: approach 1 and approach 2. Approach 1 is a visualization of sentencing patterns. Approach 2 is a statistical model known as random coefficient models. 
 
@@ -84,11 +84,22 @@ Higher values of random effect, $u_{0j}$, lead to higher values of the intercept
 
 *Include any issues or challenges that you noticed in the data, that may be relevant, and any actions taken*
 
-### Issues in 
+### Issues and challenges in *offenses_dispositions_v3.csv*
+
+
+### Issues and challenges in *defendant_docket_details.csv*
+
+
+### Issues and challenges in *defendant_docket_id.csv*
+
+
 
 ## Results (3-5 pages)
 
 <span style="color:gray">*You may structure this section in any way that makes results easier to understand and describe.*</span>
+
+### Results of Approach 2: Random Coefficient Models
+
 
 ## Conclusions and Next Steps (1 page)
 
