@@ -682,7 +682,148 @@ dockets_data %>%
   geom_point(alpha = 0.3) +
   geom_smooth(method = "lm", se = FALSE)
 ```
+### confinement and court types
 
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_cp, y = total_confinement_days)) +
+  geom_boxplot(aes(color = court_types_cp)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = court_types_cp), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days",
+      subtitle = "by whether the docket has been adjudicated at Court of Common Pleas",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(court_types_cp~., scale = "free")
+```
+The range and IQR of total days of confinement of dockets that have been adjudicated at CP, Court of Common Pleas, are larger than those that have not. It appears that dockets that have been adjudicated at CP may have higher total days of confinement than those that have not.
+
+```{r}
+summarize_by_group(dockets_data, court_types_cp, total_confinement_days)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_mc, y = total_confinement_days)) +
+  geom_boxplot(aes(color = court_types_mc)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = court_types_mc), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days",
+      subtitle = "by whether the docket has been adjudicated at Municipal Court",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(court_types_mc~., scale = "free")
+```
+Although the range of total confinement days of dockets that have been adjudicated at MC, Municipal Court, is larger than those that have not, the IQR is similar. 
+
+```{r}
+summarize_by_group(dockets_data, court_types_mc, total_confinement_days)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days)) +
+  geom_boxplot(aes(color = court_types_pac)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = court_types_pac), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days",
+      subtitle = "by whether the docket has been adjudicated at PA Appellate Court",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(court_types_pac~., scale = "free")
+```
+The range of total confinement days of dockets that have been adjudicated at PAC, PA Appellate Court, is smaller than those that have not, although its IQR is larger than cases that have not been adjudicated at PAC. 
+
+```{r}
+summarize_by_group(dockets_data, court_types_pac, total_confinement_days)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Total confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_cp, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Total confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Total confinement days by whether the case was adjudicated at CP",
+       y = "days", x = "Case adjudicated at Court of Common Pleas") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = max_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Max confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_cp, labeller = "label_both") +
+  coord_flip()
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = max_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Max confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = max_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Max confinement days by whether the case was adjudicated at CP",
+       y = "days", x = "Case adjudicated at Court of Common Pleas") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+Do we have dockets that were not adjudicated at any of these courts? None. Looks good.
+```{r}
+dockets_data %>% 
+  filter(court_types_cp == 0 & court_types_mc == 0 & court_types_pac == 0) %>% 
+  count()
+```
+
+
+### confinement and 
 
 ## Random Effects Model
 
