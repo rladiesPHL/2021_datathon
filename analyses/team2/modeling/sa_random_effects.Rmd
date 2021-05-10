@@ -231,7 +231,6 @@ dockets_data %>%
 ```
 ### max confinement days
 
-
 How does the distribution of `max_confinement_days` look like?
 ```{r}
 dockets_data %>% 
@@ -302,22 +301,22 @@ dockets_data %>%
 ```{r}
 dockets_data <- dockets_data %>% 
   filter(age > 10) %>%  # drop dockets with defendants' age < 10 years
-  mutate(number_prior_dockets_scaled = scale(number_prior_dockets),
-         grade_M_scaled = scale(M),
-         grade_M1_scaled = scale(M1),
-         grade_M2_scaled = scale(M2),
-         grade_M3_scaled = scale(M3),
-         grade_F_scaled = scale(`F`),
-         grade_F1_scaled = scale(F1),
-         grade_F2_scaled = scale(F2),
-         grade_F3_scaled = scale(F3),
-         grade_S_scaled = scale(S),
-         grade_S1_scaled = scale(S1),
-         grade_S2_scaled = scale(S2),
-         grade_S3_scaled = scale(S3),
-         grade_IC_scaled = scale(IC),
-         grade_H1_scaled = scale(H1),
-         grade_H2_scaled = scale(H2)
+  # mutate(number_prior_dockets_scaled = scale(number_prior_dockets),
+  #        grade_M_scaled = scale(M),
+  #        grade_M1_scaled = scale(M1),
+  #        grade_M2_scaled = scale(M2),
+  #        grade_M3_scaled = scale(M3),
+  #        grade_F_scaled = scale(`F`),
+  #        grade_F1_scaled = scale(F1),
+  #        grade_F2_scaled = scale(F2),
+  #        grade_F3_scaled = scale(F3),
+  #        grade_S_scaled = scale(S),
+  #        grade_S1_scaled = scale(S1),
+  #        grade_S2_scaled = scale(S2),
+  #        grade_S3_scaled = scale(S3),
+  #        grade_IC_scaled = scale(IC),
+  #        grade_H1_scaled = scale(H1),
+  #        grade_H2_scaled = scale(H2)
          )
 ```
 
@@ -326,6 +325,362 @@ glimpse(dockets_data)
 ```
 ```{r}
 dockets_data %>% count(judge_id) %>% count()
+```
+
+## Plot relationships
+
+### confinement and age
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, y = total_confinement_days)) +
+  geom_point(alpha = 0.5)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, y = max_confinement_days)) +
+  geom_point(alpha = 0.5)
+```
+
+Both plots show that there is no relationship between confinement days and age.
+
+## confinement and gender
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = total_confinement_days)) +
+  geom_boxplot(aes(color = gender)) +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = gender), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days by gender",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(gender~.)
+```
+
+Boxplot and histograms show many extreme values of confinement days in female as well as male defendants. Plots of both gender shows a spike of confinement days around zero. From those plots it is difficult to discern whether there are differences across gender.  
+
+```{r}
+dockets_data %>% 
+  group_by(gender) %>% 
+  summarise(min = min(total_confinement_days), Q1 = quantile(total_confinement_days, 0.25),
+            median = median(total_confinement_days), Q3 = quantile(total_confinement_days, 0.75),
+            max = max(total_confinement_days), mean = mean(total_confinement_days), n = n())
+```
+The distributions of total confinement days of female and male are unimodal skewed to the right, with extreme values on the higher ends. Center of distribution, measured by median, is zero for both gender. The IQR and the range of male distribution are wider than that of female. Accordingly, the mean of male distribution is higher than female's. 
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = max_confinement_days)) +
+  geom_boxplot(aes(color = gender)) +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= max_confinement_days)) +
+  geom_histogram(aes(fill = gender), binwidth = 500) +
+  labs(title = "Histogram of max confinement days by gender",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(gender~.)
+```
+
+```{r}
+# create function to summarize quantitative var by group
+
+summarize_by_group <- function(a_df, grouping_var, y){ 
+  a_df %>% 
+  group_by({{grouping_var}}) %>% 
+  summarise(min = min({{y}}), Q1 = quantile({{y}}, 0.25),
+            median = median({{y}}), Q3 = quantile({{y}}, 0.75),
+            max = max({{y}}), mean = mean({{y}}), n = n())
+}
+```
+
+
+```{r}
+summarize_by_group(dockets_data, gender, max_confinement_days)
+```
+
+Similar comments as for total confinement days applied here.
+
+### confinement and race
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = race, y = total_confinement_days)) +
+  geom_boxplot(aes(color = race)) +
+  coord_flip() +
+  labs(title = "Boxplot of total confinement days by race", y = "days") +
+  guides(color = FALSE) 
+```
+White, Black, and Asian/Pacific Islander appear to have larger variation in total days of confinement than Bi-Racial, Asian, Native American/Alaskan Native, and Unknown race. Except for Bi-Racial, the center of distribution measured by median, across race is zero. 
+
+```{r}
+summarize_by_group(dockets_data, race, total_confinement_days)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = race, y = max_confinement_days)) +
+  geom_boxplot(aes(color = race)) +
+  coord_flip() +
+  labs(title = "Boxplot of max confinement days by race", y = "days") +
+  guides(color = FALSE) 
+```
+White, Black, and Asian/Pacific Islander appear to have larger variation in max days of confinement than Bi-Racial, Asian, Native American/Alaskan Native, and Unknown race. Again, except for Bi-Racial, the center of distribution measured by median, across race is zero. 
+
+```{r}
+summarize_by_group(dockets_data, race, max_confinement_days)
+```
+
+### confinement and number of prior dockets
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) 
+```
+Some defendants have more than 50 dockets associated with them. A few even have more than 150 dockets, yet the total days of confinement of these extreme docket holders are zeros. Not sure whether these are plausible numbers.
+
+```{r}
+dockets_data %>% 
+  filter(number_prior_dockets < 50) %>% 
+  ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+For defendants whose number of prior dockets are less than 50, there appear a weak relationship between number of prior dockets and total confinement days.
+
+```{r}
+dockets_data %>% 
+  filter(number_prior_dockets < 50) %>% 
+  ggplot(aes(x = number_prior_dockets, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+For defendants whose number of prior dockets are less than 50, there appear a weak relationship between number of prior dockets and max confinement days.
+
+### confinement and grade severity
+
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+The plot shows a weak relationship between number of grade F offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~race, scales = "free") 
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade F1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade F2 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F3, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade F3 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade M offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade M1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade M2 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M3, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade M3 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade S offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade S1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade S2 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = IC, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade IC offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate between number of grade H1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate between number of grade H2 offenses and total confinement days.
+
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F3, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M3, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S3, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = IC, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
 ```
 
 
