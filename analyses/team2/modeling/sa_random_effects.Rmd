@@ -823,7 +823,57 @@ dockets_data %>%
 ```
 
 
-### confinement and 
+### confinement and year
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = year, y = total_confinement_days)) +
+  geom_boxplot(aes(color = year)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+The range of total confinement days across year seems to decline. The IQR and median are generally similar across years. The mean of total confinement days appears decreasing.  
+
+```{r}
+summarize_by_group(dockets_data, year, total_confinement_days)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = year, y = max_confinement_days)) +
+  geom_boxplot(aes(color = year)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+Probably because of the way max confinement days is constructed, the range across year seems similar. The IQR and median are also generally similar across years. The mean of max confinement days appears slightly decreasing.  
+
+```{r}
+summarize_by_group(dockets_data, year, max_confinement_days)
+```
+
+### confinement and month
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = month, y = total_confinement_days)) +
+  geom_boxplot(aes(color = month)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+summarize_by_group(dockets_data, month, total_confinement_days)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = month, y = max_confinement_days)) +
+  geom_boxplot(aes(color = month)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+summarize_by_group(dockets_data, month, max_confinement_days)
+```
 
 ## Random Effects Model
 
