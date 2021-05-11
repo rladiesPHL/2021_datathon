@@ -70,7 +70,7 @@ Finally, we included year and month variables to take into account possible seas
 
 Random coefficient models are also known, among others, as multilevel models, hierarchical linear models, or mixed-effects models. We specified a simple model shown below.
 
-**Level 1:** $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{k}x_{k} + e_{ij}$$
+**Level 1:** $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1i} + \dots + \beta_{p}x_{pi} + e_{ij}$$
 
 **Level 2:** $$\beta_{0j} = \beta_{0} + u_{0j}$$
 
