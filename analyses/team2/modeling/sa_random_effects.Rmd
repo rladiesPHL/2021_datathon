@@ -300,7 +300,7 @@ dockets_data %>%
 
 ```{r}
 dockets_data <- dockets_data %>% 
-  filter(age > 10) %>%  # drop dockets with defendants' age < 10 years
+  filter(age > 10) # %>%  # drop dockets with defendants' age < 10 years
   # mutate(number_prior_dockets_scaled = scale(number_prior_dockets),
   #        grade_M_scaled = scale(M),
   #        grade_M1_scaled = scale(M1),
@@ -317,7 +317,7 @@ dockets_data <- dockets_data %>%
   #        grade_IC_scaled = scale(IC),
   #        grade_H1_scaled = scale(H1),
   #        grade_H2_scaled = scale(H2)
-         )
+#         )
 ```
 
 ```{r}
@@ -334,16 +334,19 @@ dockets_data %>% count(judge_id) %>% count()
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = age, y = total_confinement_days)) +
-  geom_point(alpha = 0.5)
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE)
 ```
+The plot shows no relationship between total confinement days and age.
 
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = age, y = max_confinement_days)) +
-  geom_point(alpha = 0.5)
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE)
 ```
 
-Both plots show that there is no relationship between confinement days and age.
+The plot shows that a possibly very weak relationship between max confinement days and age.
 
 ## confinement and gender
 
