@@ -335,7 +335,7 @@ dockets_data %>% count(judge_id) %>% count()
 dockets_data %>% 
   ggplot(aes(x = age, y = total_confinement_days)) +
   geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(se = FALSE)
 ```
 The plot shows no relationship between total confinement days and age.
 
@@ -343,10 +343,10 @@ The plot shows no relationship between total confinement days and age.
 dockets_data %>% 
   ggplot(aes(x = age, y = max_confinement_days)) +
   geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(se = FALSE)
 ```
 
-The plot shows that a possibly very weak relationship between max confinement days and age.
+The plot shows no relationship between max confinement days and age.
 
 ## confinement and gender
 
@@ -354,14 +354,16 @@ The plot shows that a possibly very weak relationship between max confinement da
 dockets_data %>% 
   ggplot(aes(x = gender, y = total_confinement_days)) +
   geom_boxplot(aes(color = gender)) +
-  coord_flip()
+  coord_flip() +
+  guides(color = FALSE) +
+  labs(title ="Boxplot of Total Confinement Days by Gender")
 ```
 
 ```{r}
 dockets_data %>% 
   ggplot(aes(x= total_confinement_days)) +
   geom_histogram(aes(fill = gender), binwidth = 1000) +
-  labs(title = "Histogram of total confinement days by gender",
+  labs(title = "Histogram of Total Confinement Days by Gender",
        x = "days") +
   guides(fill = FALSE) +
   facet_grid(gender~.)
@@ -382,14 +384,16 @@ The distributions of total confinement days of female and male are unimodal skew
 dockets_data %>% 
   ggplot(aes(x = gender, y = max_confinement_days)) +
   geom_boxplot(aes(color = gender)) +
-  coord_flip()
+  coord_flip() +
+  guides(color = FALSE) +
+  labs(title ="Boxplot of Max Confinement Days by Gender")
 ```
 
 ```{r}
 dockets_data %>% 
   ggplot(aes(x= max_confinement_days)) +
   geom_histogram(aes(fill = gender), binwidth = 500) +
-  labs(title = "Histogram of max confinement days by gender",
+  labs(title = "Histogram of Max Confinement Days by Gender",
        x = "days") +
   guides(fill = FALSE) +
   facet_grid(gender~.)
@@ -421,7 +425,7 @@ dockets_data %>%
   ggplot(aes(x = race, y = total_confinement_days)) +
   geom_boxplot(aes(color = race)) +
   coord_flip() +
-  labs(title = "Boxplot of total confinement days by race", y = "days") +
+  labs(title = "Boxplot of Total Confinement Days by Race", y = "days") +
   guides(color = FALSE) 
 ```
 White, Black, and Asian/Pacific Islander appear to have larger variation in total days of confinement than Bi-Racial, Asian, Native American/Alaskan Native, and Unknown race. Except for Bi-Racial, the center of distribution measured by median, across race is zero. 
@@ -435,7 +439,7 @@ dockets_data %>%
   ggplot(aes(x = race, y = max_confinement_days)) +
   geom_boxplot(aes(color = race)) +
   coord_flip() +
-  labs(title = "Boxplot of max confinement days by race", y = "days") +
+  labs(title = "Boxplot of Max Confinement Days by Race", y = "days") +
   guides(color = FALSE) 
 ```
 White, Black, and Asian/Pacific Islander appear to have larger variation in max days of confinement than Bi-Racial, Asian, Native American/Alaskan Native, and Unknown race. Again, except for Bi-Racial, the center of distribution measured by median, across race is zero. 
@@ -451,25 +455,25 @@ dockets_data %>%
   ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
   geom_point(alpha = 0.3) 
 ```
-Some defendants have more than 50 dockets associated with them. A few even have more than 150 dockets, yet the total days of confinement of these extreme docket holders are zeros. Not sure whether these are plausible numbers.
+Some defendants have more than 50 dockets associated with them. A few even have more than 150 dockets, yet the total days of confinement of these extreme docket holders are zeros. Not sure whether these are plausible numbers. In the above plot, the spread of total confinement days are wider for smaller number of prior dockets.
 
 ```{r}
 dockets_data %>% 
   filter(number_prior_dockets < 50) %>% 
   ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
   geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(se = FALSE)
 ```
-For defendants whose number of prior dockets are less than 50, there appear a weak relationship between number of prior dockets and total confinement days.
+For defendants whose number of prior dockets are less than 50, it does not seem that there is a relationship between number of prior dockets and total confinement days. Aside from the point where number of prior dockets is about 35, the spread of total confinement days appear to be wider when the the number of prior dockets is small, then the spread becomes narrower before it slightly widen when the number of dockets is above 33. 
 
 ```{r}
 dockets_data %>% 
   filter(number_prior_dockets < 50) %>% 
   ggplot(aes(x = number_prior_dockets, y = max_confinement_days)) +
   geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(se = FALSE)
 ```
-For defendants whose number of prior dockets are less than 50, there appear a weak relationship between number of prior dockets and max confinement days.
+For defendants whose number of prior dockets are less than 50, there appear a very weak relationship between number of prior dockets and max confinement days. The spread of max confinement days are wider for smaller number of prior dockets.
 
 ### confinement and grade severity
 
@@ -478,24 +482,35 @@ For defendants whose number of prior dockets are less than 50, there appear a we
 dockets_data %>% 
   ggplot(aes(x = `F`, y = total_confinement_days)) +
   geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Total confinement days")
 ```
 
 The plot shows a weak relationship between number of grade F offenses and total confinement days.
 
 ```{r}
 dockets_data %>% 
-  ggplot(aes(x = `F`, y = max_confinement_days)) +
-  geom_point(alpha = 0.3) +
-  facet_wrap(~race, scales = "free") 
+  ggplot(aes(x = `F`, y = total_confinement_days)) +
+  geom_point(alpha = 0.4, size = 2, color = "darkblue") +
+ # geom_smooth(method = "lm", se = FALSE) +
+  coord_cartesian(xlim = c(0, 25)) +
+  theme_light() +
+  labs(title = "Zoom: Number of grade offenses 0 - 25",
+       x = "Number of grade F offenses",
+       y = "Total confinement days")
 ```
+
+
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = F1, y = total_confinement_days)) +
   geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(method = "lm", se = FALSE) +
+    labs(x = "Number of grade F1 offenses",
+       y = "Total confinement days")
 ```
-The plot shows a moderate relationship between number of grade F1 offenses and total confinement days.
+The plot shows a moderate relationship between number of grade F1 offenses and total confinement days. Spread is larger when number of grade offenses is smaller.
 
 ```{r}
 dockets_data %>% 
