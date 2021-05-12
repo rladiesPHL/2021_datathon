@@ -62,9 +62,39 @@ The dashboard is currently hosted at a temporary location: [https://awalsh.shiny
 [GitHub code repository](https://github.com/yjunechoe/2021_datathon_dashboard)
 
 ### Sentences
+
 We created three different sections to visualize sentence length. These are represented by three tabs in the "Sentences" section of the dashboard.
 
+*Visualization of Sentence Length*
+
+(Alison’s part)
+Hi my name Alison! 
+
+*Sentence by Judge and Offense*
+
+One question someone might be interested in is whether a single judge follows similar patterns as the “average” judge for a given type of offense. This section of the dashboard allows a user to explore this type of question with 3 user inputs. The output is two graphs and a table.
+
+The user can select an offense from a pulldown menu with descriptions of the statutes (e.g., “simple assault”). Then the user can filter to only certain grades (all are selected by default) and select the judge of interest. Finally, the user can select to view a simplified plot where all the grades are considered together or you can stratify by the grade by checking the “Separate by Grade” option.
+
+The first plot gives an overview of the sentence type (Probation, no further penalty, confinement, etc.). The second plot summarizes the sentence lengths (both confinement and probation). In both cases, the selected judge is plotted side by side with the information from all other judges aggregated together.
+
+Keep in mind that the data used here is only for offenses that had an associated sentence/disposition. In other words, this analysis is at the “offense-level” and not the “docket-level”. This visualization does not consider other factors about the docket such as other offenses on the docket, the defendant’s record, or the disposition method. Finally, this approach will exclude occurrences of offenses where that specific offense was not associated with any sentence (but others on the docket were).
+
+The input data for both this section was modified from the source data. First, the data was filtered to only offenses with a disposition. In other words, if the disposition (e.g., “Guilty”) was missing for a given offense on a given docket, it was removed. Second, the values for the offense descriptions (e.g., "retail theft-take mdse") were cleaned to remove redundancy. The "statute_description" variable in the provided data was modified to be all lower case to remove duplicates caused by differences in cases (i.e., "Theft" is the same as "theft"). Then differences in spacing were adjusted to remove duplicates (i.e., two spaces is the same as one space). Conspiracy offenses (statute 18 Pa CS 903) needed special consideration. Conspiracies all have the same statute code, but they also have an "object offense", that tells you that the defendant was conspiring to do. The grades should reflect these differences as well. Therefore, we wanted to keep the full statute description for these offenses. 
+ 
+*Sentence Type by Race* 
+
+(Kulbir’s part)
+
 ### Bail
+
+*Net Bail Amount Actions*
+
+(Roy’s part)
+
+*Bail Amount and Type*
+
+(Sybil’s part) ok, can edit! 
 
 ### Basic Judge Info
 We added a third section to the dashboard, which is useful for new users who may not have any familiarity with individual judges or the types of cases adjudicated in Philadelphia courts.
@@ -76,7 +106,7 @@ The "Frequent Judges" tab allows one to identify the judges that appear on the m
 The "Frequent Offenses by Judge" tab allows one to select a judge and a date range and then see the 5 most frequent offense descriptions for those inputs. All the remaining offenses are grouped into a 6th category called "Other". The data is displayed in a column chart as well as a table.
 
 ![Screenshot of Frequent Offenses Tab](./img/frequent_offenses.png)
-The input data for both the above sections was modified from the source data. First, the data was filtered to only offenses with a disposition. In other words, if the disposition (e.g., ) was missing for a given offense on a given docket, it was removed. Second, the values for the offense descriptions (e.g., "retail theft-take mdse") were cleaned to remove redundancy. The "statute_description" variable in the provided data was modified to be all lower case to remove duplicates caused by differences in cases (i.e., "Theft" is the same as "theft"). Then differences in spacing were adjusted to remove duplicates (i.e., two spaces is the same as one space). Conspiracy offenses (statute 18 Pa CS 903) needed to be considered specially. Conspiracies all have the same statute code, but they also have an "object offense", that tells you that the defendant was conspiring to do. The grades should reflect these differences as well. Therefore, we wanted to keep the full statute description for these offenses. 
+The input data for both the above sections were modified from the source data. See the section above (Sentences by Judge and Offense) for full details. 
 
 
 # Conclusions and Next Steps 
@@ -101,10 +131,6 @@ Our team also identified some longer-term objectives that could be incorporated 
 
 # Team Contributors & Acknowledgements
 
-<span style="color:gray">*This section should list the names and 1-2 sentence descriptions of everyone who worked on the submission. An example is listed below (please replace the example with your own info).*</span>
+**Alice Walsh, Ph.D.** is a computational biologist at Bristol Myers Squibb and an organizer of R-Ladies Philly. She enjoys data cleaning, generating hypotheses from complex data, and mentoring others.
 
-**Gritty McGritty, MSc** is a data scientist with Philly's DataForGood nonprofit, and a student of applied statistics at DataIsLife University. In both roles, Gritty enjoys conducting predictive analyses and natural language processing.
-
-**Alice Walsh, PhD** is a computational biologist at Bristol Myers Squibb and an organizer of R-Ladies Philly. She enjoys data cleaning, generating hypotheses from complex data, and mentoring others.
-
-We would like to thank the other team's for their valuable help in understanding and cleaning the data. We would like to thank the R-Ladies organizers for... The JAT team for providing the data and the extremely valuable guidance throughout the project. Other....
+We would like to thank the other teams for their valuable help in understanding and cleaning the data. We would like to thank the R-Ladies organizers for... The JAT team for providing the data and the extremely valuable guidance throughout the project. Other....
