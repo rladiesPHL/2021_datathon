@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 This notebook is an attempt to model judge harshness using random effects model.
 
 ```{r}
+library(patchwork)
 library(tidyverse)
 ```
 
@@ -327,9 +328,57 @@ glimpse(dockets_data)
 dockets_data %>% count(judge_id) %>% count()
 ```
 
+## Check response for possible transformation
+
+### total confinement days
+
+```{r}
+p1_total <- dockets_data %>% 
+  ggplot(aes(x = total_confinement_days)) +
+  geom_histogram(binwidth = 700) +
+  labs(title = "Histogram: total confinement days",
+       x = "total confinement days")
+```
+
+```{r}
+p2_total <- dockets_data %>% 
+  ggplot(aes(x = log(total_confinement_days + 0.5))) +
+  geom_histogram(binwidth = 0.7) +
+  labs(title = "Histogram: log total confinement days",
+       x = "log(total confinement days)")
+```
+
+```{r}
+p1_total + p2_total
+```
+
+### max confinement days
+
+```{r}
+p1_max <- dockets_data %>% 
+  ggplot(aes(x = max_confinement_days)) +
+  geom_histogram(binwidth = 250) +
+  labs(title = "Histogram: max confinement days",
+       x = "max confinement days")
+```
+
+```{r}
+p2_max <- dockets_data %>% 
+  ggplot(aes(x = log(max_confinement_days + 0.5))) +
+  geom_histogram(binwidth = 0.7) +
+  labs(title = "Histogram: log max confinement days",
+       x = "log(max confinement days)")
+```
+
+```{r}
+p1_max + p2_max
+```
+
 ## Plot relationships
 
 ### confinement and age
+
+#### without transformation
 
 ```{r}
 dockets_data %>% 
@@ -347,6 +396,44 @@ dockets_data %>%
 ```
 
 The plot shows no relationship between max confinement days and age.
+
+### log(confinement) and age
+
+```{r}
+p1 <- dockets_data %>% 
+  ggplot(aes(x = age, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE)
+```
+
+```{r}
+p2 <- dockets_data %>% 
+  ggplot(aes(x = age, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE)
+```
+
+```{r}
+p1 + p2
+```
+
+```{r}
+dockets_data %>% 
+  filter(total_confinement_days > 0) %>% 
+  ggplot(aes(x = age, y = log(total_confinement_days))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Scatterplots of log total confinement days \nvs. age: Confinement days larger than zero")
+```
+```{r}
+dockets_data %>% 
+  filter(max_confinement_days > 0) %>% 
+  ggplot(aes(x = age, y = log(max_confinement_days))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Scatterplots of max total confinement days \nvs. age: Confinement days larger than zero")
+```
+
 
 ## confinement and gender
 
@@ -450,6 +537,8 @@ summarize_by_group(dockets_data, race, max_confinement_days)
 
 ### confinement and number of prior dockets
 
+#### without transformation
+
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
@@ -475,8 +564,24 @@ dockets_data %>%
 ```
 For defendants whose number of prior dockets are less than 50, there appear a very weak relationship between number of prior dockets and max confinement days. The spread of max confinement days are wider for smaller number of prior dockets.
 
+#### log(confinement) and number of prior dockets
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) 
+```
+The plot of log total confinement days against the number of prior dockets above shows a seemingly decreasing variance as the number of prior dockets increases. A similar pattern of non-constant variance is seen in the plot of log max confinement days against the number of prior dockets.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) 
+```
+
 ### confinement and grade severity
 
+#### without transformation
 
 ```{r}
 dockets_data %>% 
@@ -700,6 +805,145 @@ dockets_data %>%
   geom_point(alpha = 0.3) +
   geom_smooth(method = "lm", se = FALSE)
 ```
+#### log(confinement) and grade severity
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Log total confinement days")
+```
+The plot of log total confinement days against the number of grade F offenses shows non-constant, decreasing, variance. Side by side plots:
+```{r}
+p1 <- dockets_data %>% 
+  ggplot(aes(x = `F`, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Total confinement days",
+       title = "No transformation")
+
+p2 <- dockets_data %>% 
+  ggplot(aes(x = `F`, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Log total confinement days",
+       title = "Log transformation")
+
+p1 + p2
+```
+
+Against number of grade F1 offenses.
+
+```{r}
+plot_response_covariate <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
+  a_plot <- a_df %>% 
+    ggplot(aes(x = {{covariate_var}}, y = {{response_var}})) +
+    geom_point(alpha = 0.3) +
+    labs(title = "No transformation")
+  return(a_plot)
+}
+
+plot_logresponse_covariate <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
+  a_plot <- a_df %>% 
+    ggplot(aes(x = {{covariate_var}},
+               y = log({{response_var}} + 0.5))) +
+    geom_point(alpha = 0.3) +
+    labs(title = "Log transformation")
+  return(a_plot)
+}
+```
+
+
+```{r}
+p1 <- plot_response_covariate(covariate_var = F1)
+p2 <-  plot_logresponse_covariate(covariate_var = F1)
+p1 + p2
+```
+Against number of grade F2 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = F2)
+p2 <-  plot_logresponse_covariate(covariate_var = F2)
+p1 + p2
+```
+```{r}
+p1 <- plot_response_covariate(covariate_var = F3)
+p2 <-  plot_logresponse_covariate(covariate_var = F3)
+p1 + p2
+```
+Against number of grade M offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M)
+p2 <-  plot_logresponse_covariate(covariate_var = M)
+p1 + p2
+```
+
+Against the number of grade M1 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M1)
+p2 <-  plot_logresponse_covariate(covariate_var = M1)
+p1 + p2
+```
+Against the number of M2 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M2)
+p2 <-  plot_logresponse_covariate(covariate_var = M2)
+p1 + p2
+```
+Against the number of M3 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M3)
+p2 <-  plot_logresponse_covariate(covariate_var = M3)
+p1 + p2
+```
+Against the number of grade S offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S)
+p2 <-  plot_logresponse_covariate(covariate_var = S)
+p1 + p2
+```
+Against the number of grade S1 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S1)
+p2 <-  plot_logresponse_covariate(covariate_var = S1)
+p1 + p2
+```
+Against the number of grade S2 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S2)
+p2 <-  plot_logresponse_covariate(covariate_var = S2)
+p1 + p2
+```
+Against the number of grade S3 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S3)
+p2 <-  plot_logresponse_covariate(covariate_var = S3)
+p1 + p2
+```
+Against the number of grade IC offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = IC)
+p2 <-  plot_logresponse_covariate(covariate_var = IC)
+p1 + p2
+```
+
+Against the number of H1 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = H1)
+p2 <-  plot_logresponse_covariate(covariate_var = H1)
+p1 + p2
+```
+Against the number of H2 offenses.
+
+```{r}
+p1 <- plot_response_covariate(covariate_var = H2)
+p2 <-  plot_logresponse_covariate(covariate_var = H2)
+p1 + p2
+```
+
 ### confinement and court types
 
 ```{r}
@@ -893,7 +1137,7 @@ dockets_data %>%
 summarize_by_group(dockets_data, month, max_confinement_days)
 ```
 
-## Random Effects Model
+## Random Effects Model: No transformation on response variables
 
 ```{r}
 library(lme4)
@@ -911,7 +1155,7 @@ where $j  = \text{judge_id}$ and $x$s are the covariates.
 
 
 ```{r}
-judge_total_intercept_model <- lmer(total_confinement_days ~ 1 + gender + race + log(age) +
+judge_total_intercept_model <- lmer(total_confinement_days ~ 1 + gender + race + age +
                                number_prior_dockets + M + M1 +
                                M2 + M3 + `F` +
                                F1 + F2 + F3 +
@@ -996,7 +1240,7 @@ Residuals are not normally distributed.
 ### Dependent variable: Max confinement days
 
 ```{r}
-judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + log(age) +
+judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + age +
                                number_prior_dockets + M + M1 +
                                M2 + M3 + `F` +
                                F1 + F2 + F3 +
@@ -1049,3 +1293,4 @@ QQ plot
 ```{r}
 lattice::qqmath(judge_max_intercept_model, id = 0.05)
 ```
+## Random Effects Model: Log transformation on response variables
