@@ -151,30 +151,50 @@ def_disp <- def_raw %>%
         factor(ordered = TRUE)
   )
 
-def_disp %>%
+p <- def_disp %>%
   drop_na(period_bef_aft) %>%
-  filter(sentence_type != 'IPP') %>% 
+  mutate(
+    grade = grade %>% 
+      fct_relevel("F", "M", after = 0),
+    offense_type = substr(grade, 1, 1),
+    x_bar = case_when(
+      offense_type == "M" ~ 365,
+      offense_type == "F" ~ 3 * 365,
+      TRUE ~ NA_real_
+    ),
+    offense_facet = case_when(
+      offense_type == "M" ~ "Misdemeanor",
+      offense_type == "F" ~ "Felony",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(
+    sentence_type == "Probation",
+    !is.na(x_bar)
+  ) %>%
   ggplot(aes(fill = period_bef_aft, x = max_period_days, y = grade)) +
   geom_boxplot(outlier.size = 0.2, outlier.alpha = 0.1) +
   scale_x_sqrt(breaks = c(100, 1000, 5000, 10000, 20000)) +
   labs(fill = NULL, y = "Offense grade", x = "Max sentence (days)") +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  geom_segment(aes(x = x_bar, xend = x_bar, yend = offense_type),
+    color = "#99C945", size = 1.5
+  ) +
+  rcartocolor::scale_fill_carto_d() +
+  facet_wrap(vars(offense_facet), scales = "free") +
+  theme_classic() +
   theme(
-    legend.position = c(0.95, 0.1),
+    legend.position = c(0.95, 0.2),
     panel.grid.major.y = element_blank()
   ) +
-  guides(fill = guide_legend(reverse = TRUE)) +
-  geom_segment(
-    data = . %>% filter(sentence_type == 'Probation'),
-    mapping = aes(x = 365, xend = 365, y = 'M', yend = 'M3'),
-               color = '#99C945', size = 2) +
-  geom_segment(
-    data = . %>% filter(sentence_type == 'Probation'),
-    mapping = aes(x = 3*365, xend = 3*365, y = 'F', yend = 'F3'),
-               color = '#99C945', size = 2) +
-  rcartocolor::scale_fill_carto_d() +
-  facet_grid(cols = vars(sentence_type), scales = 'free') +
   # gghighlight::gghighlight(!grade %in% c("M1", "M3", "F", "S", "IC")) +
   NULL
+p
 ```
 
 ![](max-sentencing_files/figure-gfm/max-sentence-trend-1.png)<!-- -->
+
+``` r
+ggsave('reports/figs/max-sentence.png', p, height = 3, width = 7)
+# ggsave('figs/max-sentence.png', p, height = 3, width = 7)
+```
