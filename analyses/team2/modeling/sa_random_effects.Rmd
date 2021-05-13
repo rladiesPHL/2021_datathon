@@ -1294,3 +1294,61 @@ QQ plot
 lattice::qqmath(judge_max_intercept_model, id = 0.05)
 ```
 ## Random Effects Model: Log transformation on response variables
+
+### Dependent variable: Log total confinement days
+
+```{r}
+judge_log_total_intercept_model <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+summary(judge_log_total_intercept_model)
+```
+```{r}
+ranef(judge_log_total_intercept_model)$judge_id
+```
+
+```{r}
+judge_log_total_ranef <- tibble(ranef(judge_log_total_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_log_total_ranef
+```
+
+```{r}
+judge_log_total_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Log total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+#### Diagnostics: Total confinement days
+
+```{r}
+plot(judge_log_total_intercept_model, type = c("p", "smooth"))
+```
+
+```{r}
+plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+```{r}
+lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
+```
+
