@@ -122,7 +122,7 @@ In the next tab called “Bail Actions,” we explore bail action types a bit fu
 
 ![Image 1.](./img/bail_image1.png)
 
-![Image 1.](./img/bail_image2.png)
+![Image 2.](./img/bail_image2.png)
 
 The last category under “Bail Amount and Type” is “Bail by Season” which displays action type categories for a selected judge by season. These seasonal categories were created by categorizing months into their respective yearly seasons. This is helpful for visualizing any trends for action types throughout the year. This is particularly interesting to observe if holiday-filled seasons or warmer weather affect bail increases and decreases per judge. 
 
