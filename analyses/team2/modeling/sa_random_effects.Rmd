@@ -419,6 +419,27 @@ p1 + p2
 
 ```{r}
 dockets_data %>% 
+  ggplot(aes(x = age, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  #geom_smooth(se = FALSE, color = "darkblue") +
+  facet_wrap(~gender) +
+  labs(x = "Age", y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  #geom_smooth(se = FALSE, color = "darkblue") +
+  facet_wrap(~gender) +
+  labs(x = "Age", y = "log(max confinement days)") +
+  guides(color = FALSE)
+```
+
+
+```{r}
+dockets_data %>% 
   filter(total_confinement_days > 0) %>% 
   ggplot(aes(x = age, y = log(total_confinement_days))) +
   geom_point(alpha = 0.2) +
@@ -485,6 +506,17 @@ dockets_data %>%
   guides(fill = FALSE) +
   facet_grid(gender~.)
 ```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = max_confinement_days)) +
+  geom_boxplot(aes(color = gender)) +
+  coord_flip() +
+  guides(color = FALSE) +
+  facet_wrap(~race) +
+  labs(title ="Boxplots of Max Confinement Days by Gender")
+```
+
 
 ```{r}
 # create function to summarize quantitative var by group
@@ -578,6 +610,43 @@ dockets_data %>%
   ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
   geom_point(alpha = 0.3) 
 ```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(total confinement days)")
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(max confinement days)")
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = race)) +
+  facet_wrap(~race) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(total confinement days)")
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = race)) +
+  facet_wrap(~race) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(max confinement days)")
+```
+
 
 ### confinement and grade severity
 
@@ -805,6 +874,7 @@ dockets_data %>%
   geom_point(alpha = 0.3) +
   geom_smooth(method = "lm", se = FALSE)
 ```
+
 #### log(confinement) and grade severity
 
 ```{r}
@@ -1293,6 +1363,7 @@ QQ plot
 ```{r}
 lattice::qqmath(judge_max_intercept_model, id = 0.05)
 ```
+
 ## Random Effects Model: Log transformation on response variables
 
 ### Dependent variable: Log total confinement days
@@ -1338,6 +1409,7 @@ judge_log_total_ranef %>%
     panel.grid.minor = element_blank()
   )
 ```
+
 #### Diagnostics: Total confinement days
 
 ```{r}
@@ -1352,3 +1424,49 @@ plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c(
 lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
 ```
 
+## Random Effects Model: inverse gaussian GLM, link = log
+
+### Dependent variable: Total confinement days
+
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log(number_prior_dockets + 0.5) + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+
+## Fixed Effects Model: tweedie GLM
+
+### Dependent variable: total confinement days
+
+Estimate $\xi$:
