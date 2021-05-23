@@ -1,0 +1,372 @@
+---
+title: "Random Coefficient Models"
+author: "Shanti Agung"
+date: "4/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This notebook is an attempt to model judge harshness using random coefficient (mixed effects) model.
+
+```{r}
+library(patchwork)
+library(tidyverse)
+library(lme4)
+```
+
+```{r}
+# Source the functions
+source(file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                 "analyses", "team2", "preprocess", "sa_functions.R"))
+```
+
+```{r}
+# Make sure the source file (docket details data) exists
+source_file <- file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                         "data", "docket_details.csv")
+stopifnot(file.exists(source_file))
+```
+
+# Load dataset
+
+```{r}
+# load dataset
+ddcols = cols(
+  docket_id = col_double(),
+  gender = col_character(),
+  race = col_character(),
+  date_of_birth = col_date(format = ""),
+  arrest_date = col_date(format = ""),
+  complaint_date = col_date(format = ""),
+  disposition_date = col_date(format = ""),
+  filing_date = col_date(format = ""),
+  initiation_date = col_date(format = ""),
+  status_name = col_character(),
+  court_office__court__display_name = col_character(),
+  current_processing_status__processing_status = col_character(),
+  current_processing_status__status_change_datetime = col_date(format = ""),
+  municipality__name = col_character(),
+  municipality__county__name = col_character(),
+  judicial_districts = col_character(),
+  court_office_types = col_character(),
+  court_types = col_character(),
+  representation_type = col_character(),
+  M = col_double(),
+  M3 = col_double(),
+  F1 = col_double(),
+  F3 = col_double(),
+  F2 = col_double(),
+  M1 = col_double(),
+  M2 = col_double(),
+  S = col_double(),
+  `F` = col_double(),
+  IC = col_double(),
+  H2 = col_double(),
+  H1 = col_double(),
+  S2 = col_double(),
+  S1 = col_double(),
+  S3 = col_double(),
+  judge_id = col_double(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  number_prior_dockets = col_double(),
+  total_confinement_days = col_double(),
+  max_confinement_days = col_double(),
+  age = col_double(),
+  court_types_cp = col_double(),
+  court_types_mc = col_double(),
+  court_types_pac = col_double(),
+  court_office_types_commonwealth = col_double(),
+  court_office_types_criminal = col_double(),
+  court_office_types_municipal = col_double(),
+  court_office_types_supreme = col_double(),
+  court_office_types_suprerior = col_double()
+)
+
+dockets <- readr::read_csv(source_file, col_types = ddcols)
+```
+
+```{r}
+# Subset data for analysis
+dockets_data <- subset_dockets(dockets)
+```
+
+```{r}
+glimpse(dockets_data)
+```
+
+
+```{r}
+# Create factors
+gender_levels <- c("Female", "Male")
+race_levels <- c("Asian", "Asian/Pacific Islander", "Bi-Racial", "Black",
+                 "Native American/Alaskan Native", "Unknown/Unreported",
+                 "White")
+
+dockets_data <- dockets_data %>% 
+  mutate(gender = factor(gender, level = gender_levels),
+         race = factor(race, level = race_levels),
+         court_types_cp = factor(court_types_cp),
+         court_types_mc = factor(court_types_mc),
+         court_types_pac = factor(court_types_pac),
+         judge_id = factor(judge_id),
+         year = factor(year, ordered = TRUE))
+```
+
+
+# Random Effects Model: No transformation on response variables
+
+## Dependent variable: Total confinement days
+
+Model specification
+*Level 1* $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{47}x_{47} + e_{ij}$$
+
+
+*Level 2* $$\beta_{0j} = \beta_{0} + u_{0j}$$
+
+where $j  = \text{judge_id}$ and $x$s are the covariates.
+
+
+```{r}
+judge_total_intercept_model <- lmer(total_confinement_days ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+summary(judge_total_intercept_model)
+```
+
+```{r}
+ranef(judge_total_intercept_model)$judge_id
+```
+
+```{r}
+judge_total_ranef <- tibble(ranef(judge_total_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_total_ranef
+```
+
+```{r}
+judge_total_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(binwidth = 250, fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Docket total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+summary(judge_total_ranef$ranef_intercept)
+```
+
+Order judges on harshness from high to low.
+```{r}
+judge_total_ranef %>% 
+  arrange(desc(ranef_intercept))
+```
+
+
+```{r}
+dockets %>% 
+  filter(judge_id == 20) %>% 
+  select(disposing_authority__last_name, disposing_authority__first_name,
+         disposing_authority__middle_name)
+```
+
+### Diagnostics: Total confinement days
+
+fitted vs. residual plot
+```{r}
+plot(judge_total_intercept_model, type = c("p", "smooth"))
+```
+Residual are not scattered evenly around zero along the the ranges of fitted values.
+
+scale-location plots
+```{r}
+plot(judge_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+Assumption of homoskedascity is violated.
+
+QQ plot
+```{r}
+lattice::qqmath(judge_total_intercept_model, id = 0.05)
+```
+Residuals are not normally distributed.
+
+## Dependent variable: Max confinement days
+
+```{r}
+judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+
+```{r}
+judge_max_ranef <- tibble(ranef(judge_max_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+
+```
+
+```{r}
+judge_max_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(binwidth = 250, fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Docket max days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+Order judges on harshness from high to low.
+```{r}
+judge_max_ranef %>% 
+  arrange(desc(ranef_intercept))
+```
+
+### Diagnostics: Max confinement days
+
+fitted vs. residual plot
+```{r}
+plot(judge_max_intercept_model, type = c("p", "smooth"))
+```
+
+scale-location plots
+```{r}
+plot(judge_max_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+QQ plot
+```{r}
+lattice::qqmath(judge_max_intercept_model, id = 0.05)
+```
+
+# Random Effects Model: Log transformation on response variables
+
+## Dependent variable: Log total confinement days
+
+```{r}
+judge_log_total_intercept_model <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+summary(judge_log_total_intercept_model)
+```
+```{r}
+ranef(judge_log_total_intercept_model)$judge_id
+```
+
+```{r}
+judge_log_total_ranef <- tibble(ranef(judge_log_total_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_log_total_ranef
+```
+
+```{r}
+judge_log_total_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Log total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+### Diagnostics: Total confinement days
+
+```{r}
+plot(judge_log_total_intercept_model, type = c("p", "smooth"))
+```
+
+```{r}
+plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+```{r}
+lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
+```
+
+# Random Effects Model: inverse gaussian GLM, link = log
+
+## Dependent variable: Total confinement days
+
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log(number_prior_dockets + 0.5) + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+
