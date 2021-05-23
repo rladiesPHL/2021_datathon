@@ -118,9 +118,33 @@ dockets_data <- dockets_data %>%
 ```
 
 
-# Random Effects Model: No transformation on response variables
+```{r}
+# Log transform covariates
+dockets_data <- dockets_data %>% 
+  mutate(log_age = log(age),
+         log_prior_dockets = log(number_prior_dockets + 0.5),
+         log_M = log(M + 0.5),
+         log_M1 = log(M1 + 0.5),
+         log_M2 = log(M2 + 0.5),
+         log_M3 = log(M3 + 0.5),
+         log_F = log(`F` + 0.5),
+         log_F1 = log(F1 + 0.5),
+         log_F2 = log(F2 + 0.5),
+         log_F3 = log(F3 + 0.5),
+         log_S = log(S + 0.5),
+         log_S1 = log(S1 + 0.5),
+         log_S2 = log(S2 + 0.5),
+         log_S3 = log(S3 + 0.5),
+         log_IC = log(IC + 0.5),
+         log_H1 = log(H1 + 0.5),
+         log_H2 = log(H2 + 0.5)
+         )
+```
 
-## Dependent variable: Total confinement days
+
+# 1. Random Effects Model: No transformation on response variables
+
+## 1.1 Dependent variable: Total confinement days
 
 Model specification
 *Level 1* $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{47}x_{47} + e_{ij}$$
@@ -212,7 +236,7 @@ lattice::qqmath(judge_total_intercept_model, id = 0.05)
 ```
 Residuals are not normally distributed.
 
-## Dependent variable: Max confinement days
+## 1.2 Dependent variable: Max confinement days
 
 ```{r}
 judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + age +
@@ -269,9 +293,9 @@ QQ plot
 lattice::qqmath(judge_max_intercept_model, id = 0.05)
 ```
 
-# Random Effects Model: Log transformation on response variables
+# 2. Random Effects Model: Log transformation on response variables
 
-## Dependent variable: Log total confinement days
+## 2.1 Dependent variable: Log total confinement days
 
 ```{r}
 judge_log_total_intercept_model <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
@@ -329,11 +353,14 @@ plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c(
 lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
 ```
 
-# Random Effects Model: inverse gaussian GLM, link = log
+# 3. Random Effects Model: inverse gaussian GLM, link = log
 
 ## Dependent variable: Total confinement days
 
 ```{r}
+# This chuck generates error below:
+# Error in (function (fr, X, reTrms, family, nAGQ = 1L, verbose = 0L, maxit = 100L, : (maxstephalfit) PIRLS step-halvings failed to reduce deviance in pwrssUpdate
+
 judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
                                number_prior_dockets + M + M1 +
                                M2 + M3 + `F` +
@@ -345,6 +372,31 @@ judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + r
                                (1 | judge_id), data = dockets_data,
                                family = inverse.gaussian(link = "log"))
 ```
+
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + log_age +
+                                   log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
+                                   log_F1 + log_F2 + log_F3 + log_S + log_S1 + log_S2 + log_S3 + 
+                                   log_IC + log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_data,
+                                 family = inverse.gaussian(link = "log"))
+```
+
+
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + log_age +
+                               log_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), data = dockets_data,
+                               family = inverse.gaussian(link = "log"))
+```
+
 
 ```{r}
 judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
