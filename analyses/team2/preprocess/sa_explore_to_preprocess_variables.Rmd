@@ -5,7 +5,7 @@ date: "4/22/2021"
 output: html_document
 ---
 
-This notebook is to explore preprocessing cleaned dataset for variables needed for modelling.
+This notebook is to explore ways to preprocess the cleaned dataset in order to create variables needed for modeling.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
