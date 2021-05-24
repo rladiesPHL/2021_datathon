@@ -16,6 +16,8 @@ This notebook is an attempt to model judge harshness using dummy variable models
 library(patchwork)
 library(tidyverse)
 library(lme4)
+library(tweedie)
+library(statmod)
 ```
 
 ```{r}
@@ -118,8 +120,35 @@ dockets_data <- dockets_data %>%
          year = factor(year, ordered = TRUE))
 ```
 
+```{r}
+# Log transform covariates
+dockets_data <- dockets_data %>% 
+  mutate(log_age = log(age),
+         log_prior_dockets = log(number_prior_dockets + 0.5),
+         log_M = log(M + 0.5),
+         log_M1 = log(M1 + 0.5),
+         log_M2 = log(M2 + 0.5),
+         log_M3 = log(M3 + 0.5),
+         log_F = log(`F` + 0.5),
+         log_F1 = log(F1 + 0.5),
+         log_F2 = log(F2 + 0.5),
+         log_F3 = log(F3 + 0.5),
+         log_S = log(S + 0.5),
+         log_S1 = log(S1 + 0.5),
+         log_S2 = log(S2 + 0.5),
+         log_S3 = log(S3 + 0.5),
+         log_IC = log(IC + 0.5),
+         log_H1 = log(H1 + 0.5),
+         log_H2 = log(H2 + 0.5)
+         )
+```
+
 # Tweedie GLM
 
 ## Dependent variable: total confinement days
 
 Estimate $\xi$:
+```{r}
+
+```
+
