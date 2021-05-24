@@ -114,6 +114,30 @@ dockets_data <- dockets_data %>%
          year = factor(year, ordered = TRUE))
 ```
 
+```{r}
+# Log transform covariates
+dockets_data <- dockets_data %>% 
+  mutate(log_age = log(age),
+         log_prior_dockets = log(number_prior_dockets + 0.5),
+         log_M = log(M + 0.5),
+         log_M1 = log(M1 + 0.5),
+         log_M2 = log(M2 + 0.5),
+         log_M3 = log(M3 + 0.5),
+         log_F = log(`F` + 0.5),
+         log_F1 = log(F1 + 0.5),
+         log_F2 = log(F2 + 0.5),
+         log_F3 = log(F3 + 0.5),
+         log_S = log(S + 0.5),
+         log_S1 = log(S1 + 0.5),
+         log_S2 = log(S2 + 0.5),
+         log_S3 = log(S3 + 0.5),
+         log_IC = log(IC + 0.5),
+         log_H1 = log(H1 + 0.5),
+         log_H2 = log(H2 + 0.5)
+         )
+```
+
+
 # Descriptive
 
 ## judges
@@ -206,6 +230,88 @@ dockets_data %>%
   ggplot(aes(x = number_prior_dockets)) +
   geom_histogram(binwidth = 3) +
   coord_cartesian(ylim = c(0, 2700))
+```
+
+## court types
+
+```{r}
+dockets_data %>% 
+  count(court_types_cp)
+```
+```{r}
+dockets_data %>% 
+  count(court_types_mc)
+```
+```{r}
+dockets_data %>% 
+  count(court_types_pac)
+```
+## grade severity
+
+```{r}
+histogram_severity <- function(severity){
+  dockets_data %>% 
+  ggplot(aes(x = {{severity}})) +
+  geom_histogram(fill = "lightpink2")
+}
+```
+
+```{r}
+# grade severity: M, M1, M2, M3
+(histogram_severity(log_M) + histogram_severity(log_M1)) / (histogram_severity(log_M2) +
+                                                              histogram_severity(log_M3))
+```
+
+```{r}
+(histogram_severity(log_F) + histogram_severity(log_F1)) / (histogram_severity(log_F2) +
+                                                              histogram_severity(log_F3))
+```
+
+
+```{r}
+histogram_severity(log_S) + histogram_severity(log_S1)
+```
+```{r}
+histogram_severity(log_S2) + histogram_severity(log_S3)
+```
+```{r}
+dockets_data %>% 
+  count(log_S)
+```
+
+```{r}
+dockets_data %>% 
+  count(log_S1)
+```
+```{r}
+dockets_data %>% 
+  count(log_S2)
+```
+```{r}
+dockets_data %>% 
+  count(log_S3)
+```
+
+```{r}
+histogram_severity(log_IC)
+```
+```{r}
+dockets_data %>% 
+  count(log_IC)
+```
+
+
+```{r}
+histogram_severity(log_H1) + histogram_severity(log_H2)
+```
+
+```{r}
+dockets_data %>% 
+  count(log_H1)
+```
+```{r}
+dockets_data %>% 
+  count(log_H2)
 ```
 
 
