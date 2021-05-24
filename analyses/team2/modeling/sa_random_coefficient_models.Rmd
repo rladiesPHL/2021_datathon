@@ -99,6 +99,7 @@ dockets_data <- subset_dockets(dockets)
 glimpse(dockets_data)
 ```
 
+# Preprocess data
 
 ```{r}
 # Create factors
@@ -140,6 +141,25 @@ dockets_data <- dockets_data %>%
          log_H2 = log(H2 + 0.5)
          )
 ```
+
+```{r}
+# create binary response variable
+dockets_data <- dockets_data %>% 
+  mutate(confinement = if_else(total_confinement_days > 0, 1, 0),
+         confinement = factor(confinement))
+```
+
+
+Build a random sample.
+```{r}
+set.seed(30318)
+dockets_sample <- sample_n(dockets_data, size = 1000)
+```
+
+```{r}
+glimpse(dockets_sample)
+```
+
 
 
 # 1. Random Effects Model: No transformation on response variables
@@ -235,6 +255,11 @@ QQ plot
 lattice::qqmath(judge_total_intercept_model, id = 0.05)
 ```
 Residuals are not normally distributed.
+
+```{r}
+qqnorm(residuals(judge_log_total_intercept_model)); qqline(residuals(judge_log_total_intercept_model))
+```
+
 
 ## 1.2 Dependent variable: Max confinement days
 
@@ -353,6 +378,67 @@ plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c(
 lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
 ```
 
+```{r}
+qqnorm(residuals(judge_log_total_intercept_model)); qqline(residuals(judge_log_total_intercept_model))
+```
+
+## 2.2 Dependent variable: Log total confinement days, log transformations on some explanatory variables
+
+```{r}
+judge_log_total_m2 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+summary(judge_log_total_m2)
+```
+```{r}
+ranef(judge_log_total_m2)$judge_id
+```
+```{r}
+judge_log_total_ranef_m2 <- tibble(ranef(judge_log_total_m2)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_log_total_ranef_m2 %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Log total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+Diagnostics
+
+```{r}
+plot(judge_log_total_m2, type = c("p", "smooth"))
+```
+
+```{r}
+plot(judge_log_total_m2, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+```{r}
+lattice::qqmath(judge_log_total_m2, id = 0.05)
+```
+```{r}
+qqnorm(residuals(judge_log_total_m2)); qqline(residuals(judge_log_total_m2))
+```
+
+
 # 3. Random Effects Model: inverse gaussian GLM, link = log
 
 ## Dependent variable: Total confinement days
@@ -407,6 +493,32 @@ judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + r
                                    log_H1 + log_H2 + court_types_cp + court_types_mc +
                                    court_types_pac + year + month + 
                                    (1 | judge_id), data = dockets_data,
+                                 family = inverse.gaussian(link = "log"))
+```
+### run on docket samples
+
+```{r}
+# This chunk generates error below:
+# Error in (function (fr, X, reTrms, family, nAGQ = 1L, verbose = 0L, maxit = 100L, : pwrssUpdate did not converge in (maxit) iterations
+
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
+                                   log_F1 + log_F2 + log_F3 + log_S + log_IC +
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_sample,
+                                 family = inverse.gaussian(link = "log"))
+```
+
+```{r}
+# This chunk generates error below:
+#Error in (function (fr, X, reTrms, family, nAGQ = 1L, verbose = 0L, maxit = 100L, : pwrssUpdate did not converge in (maxit) iterations
+judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M1 + log_M2 + log_M3 + 
+                                   log_F1 + log_F2 + log_F3 + log_S + log_IC +
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_sample,
                                  family = inverse.gaussian(link = "log"))
 ```
 
@@ -464,5 +576,69 @@ judge_gamma_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 +
                                    family = Gamma(link = "log"))
 ```
 
+### run on docket samples
 
+```{r}
+# This chunk generates error below:
+# fixed-effect model matrix is rank deficient so dropping 1 column / coefficient
+# failure to converge in 10000 evaluationsconvergence code 4 from Nelder_Mead: failure to converge 
+# in 10000 evaluationsModel failed to converge with max|grad| = 1.06665 (tol = 0.002, component 1)
+judge_gamma_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
+                                   log_F1 + log_F2 + log_F3 + log_S + log_IC +
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_sample,
+                                 family = Gamma(link = "log"))
+```
+
+```{r}
+# This chunk generates error below:
+# fixed-effect model matrix is rank deficient so dropping 1 column / coefficient
+# failure to converge in 10000 evaluationsconvergence code 4 from Nelder_Mead: failure to converge 
+# in 10000 evaluationsModel failed to converge with max|grad| = 0.616358 (tol = 0.002, component 1)
+judge_gamma_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
+                                   log_F1 + log_F2 + log_F3 + log_S + 
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_sample,
+                                 family = Gamma(link = "log"))
+```
+
+```{r}
+# This chunk generates error below:
+# fixed-effect model matrix is rank deficient so dropping 1 column / coefficient
+# failure to converge in 10000 evaluationsconvergence code 4 from Nelder_Mead: failure to converge 
+# in 10000 evaluationsModel failed to converge with max|grad| = 0.29911 (tol = 0.002, component 1)
+judge_gamma_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M1 + log_M2 + log_M3 + 
+                                   log_F1 + log_F2 + log_F3 +  
+                                   log_H1 + log_H2 + 
+                                   year +
+                                   (1 | judge_id), data = dockets_sample,
+                                 family = Gamma(link = "log"))
+```
+
+# 5. Random Effects model: binomial GLM, link = logit
+
+## run on docket samples
+```{r}
+judge_binom_link_log <- glmer(confinement ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
+                                   log_F1 + log_F2 + log_F3 + log_S + log_IC +
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_sample,
+                                 family = binomial(link = "logit"))
+```
+
+```{r}
+judge_binom_link_log <- glmer(confinement ~ 1 + gender + race + age +
+                                number_prior_dockets + M + M1 + M2 + M3 + `F` + F1 +
+                                F2 + F3 + S + IC + H1 + H2 + court_types_cp + court_types_mc +
+                                court_types_pac + year + month + 
+                                (1 | judge_id), data = dockets_sample,
+                                 family = binomial(link = "logit"))
+```
 

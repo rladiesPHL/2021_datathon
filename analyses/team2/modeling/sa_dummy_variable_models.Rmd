@@ -143,12 +143,128 @@ dockets_data <- dockets_data %>%
          )
 ```
 
+Build a random sample.
+```{r}
+set.seed(30318)
+dockets_sample <- sample_n(dockets_data, size = 1000)
+```
+
+```{r}
+glimpse(dockets_sample)
+```
+
+
 # Tweedie GLM
 
 ## Dependent variable: total confinement days
 
+### on docket samples: test a small model, without grade severity
+
 Estimate $\xi$:
 ```{r}
+judge_total_profile_m1 <- tweedie.profile(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id,
+                                          do.plot = TRUE, data = dockets_sample)
+```
 
+```{r}
+xi_est_m1 <- judge_total_profile_m1$xi.max
+xi_est_m1
+```
+
+
+```{r}
+judge_total_m1 <- glm(total_confinement_days ~ log_prior_dockets + age + gender + race +
+                        year + month + judge_id, data = dockets_sample,
+                      family = tweedie(var.power = xi_est_m1,
+                                       link.power = 0))
+```
+
+Diagnostics
+```{r}
+qqnorm(qresid(judge_total_m1), main = "Quantile residuals (set 1)", las=1); qqline(qresid(judge_total_m1))
+```
+
+```{r}
+qqnorm(qresid(judge_total_m1), main = "Quantile residuals (set 2)", las=1); qqline(qresid(judge_total_m1))
+```
+### on docket samples: model that includes grade severity
+
+Estimate $\xi$:
+```{r}
+judge_total_profile_m2 <- tweedie.profile(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_sample)
+```
+```{r}
+xi_est_m2 <- judge_total_profile_m2$xi.max
+xi_est_m2
+```
+
+```{r}
+judge_total_m2 <- glm(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                      data = dockets_sample,
+                      family = tweedie(var.power = xi_est_m2, link.power = 0))
+```
+
+
+Diagnostics
+```{r}
+qqnorm(qresid(judge_total_m2), main = "Quantile residuals (set 1)", las=1); qqline(qresid(judge_total_m2))
+
+```
+```{r}
+qqnorm(qresid(judge_total_m2), main = "Quantile residuals (set 2)", las=1); qqline(qresid(judge_total_m2))
+```
+### on full dockets: model that includes grade severity
+
+
+Estimate $\xi$:
+```{r}
+judge_total_profile_m3 <- tweedie.profile(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_data)
+```
+```{r}
+xi_est_m3 <- judge_total_profile_m3$xi.max
+xi_est_m3
+```
+
+xi_est_m3 = 1.463265
+
+```{r}
+judge_total_m3 <- glm(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                      data = dockets_data,
+                      family = tweedie(var.power = xi_est_m3, link.power = 0))
+```
+
+Diagnostics
+```{r}
+qqnorm(qresid(judge_total_m3), main = "Quantile residuals (set 1)", las=1); qqline(qresid(judge_total_m3))
+```
+```{r}
+qqnorm(qresid(judge_total_m3), main = "Quantile residuals (set 2)", las=1); qqline(qresid(judge_total_m3))
 ```
 
