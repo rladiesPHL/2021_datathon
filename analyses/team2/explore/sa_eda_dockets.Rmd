@@ -213,6 +213,25 @@ dockets_data %>%
 summary(dockets_data$age)
 ```
 
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age)) +
+  geom_histogram()
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, fill = gender)) +
+  geom_histogram() +
+  facet_wrap(~gender) +
+  guides(fill = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = age, color = gender)) +
+  geom_boxplot() +
+  guides(color = FALSE)
+```
+
 ## number_prior_dockets
 
 ```{r}
@@ -433,6 +452,7 @@ dockets_data %>%
   geom_smooth(se = FALSE) +
   labs(title = "Scatterplots of log total confinement days \nvs. age: Confinement days larger than zero")
 ```
+
 ```{r}
 dockets_data %>% 
   filter(max_confinement_days > 0) %>% 
@@ -442,6 +462,56 @@ dockets_data %>%
   labs(title = "Scatterplots of max total confinement days \nvs. age: Confinement days larger than zero")
 ```
 
+### log(confinement) and other transformations of age
+
+```{r}
+# log(age)
+dockets_data %>% 
+  ggplot(aes(x = log(age), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(x = "log(age)", y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+
+```{r}
+# sqrt(age)
+dockets_data %>% 
+  ggplot(aes(x = sqrt(age), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+```{r}
+# 1/sqrt(age)
+dockets_data %>% 
+  ggplot(aes(x = (1/sqrt(age)), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+
+```{r}
+# 1/age
+dockets_data %>% 
+  ggplot(aes(x = (1/(age)), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+
+```
+```{r}
+# 1/(age^2)
+dockets_data %>% 
+  ggplot(aes(x = (1/(age^2)), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
 
 ## confinement and gender
 
@@ -597,6 +667,7 @@ dockets_data %>%
   ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
   geom_point(alpha = 0.3) 
 ```
+
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
@@ -606,6 +677,7 @@ dockets_data %>%
   labs(x = "Number of prior dockets",
        y = "log(total confinement days)")
 ```
+
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
@@ -615,6 +687,7 @@ dockets_data %>%
   labs(x = "Number of prior dockets",
        y = "log(max confinement days)")
 ```
+
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
@@ -624,6 +697,7 @@ dockets_data %>%
   labs(x = "Number of prior dockets",
        y = "log(total confinement days)")
 ```
+
 ```{r}
 dockets_data %>% 
   ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
@@ -632,6 +706,31 @@ dockets_data %>%
   guides(color = FALSE) +
   labs(x = "Number of prior dockets",
        y = "log(max confinement days)")
+```
+### log(confinement) and other transformations of number of prior dockets
+```{r}
+#log(number_prior_dockets)
+dockets_data %>% 
+  ggplot(aes(x = log(number_prior_dockets + 0.5), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+```{r}
+# 1/sqrt(x)
+dockets_data %>% 
+  ggplot(aes(x = (1/sqrt(number_prior_dockets + 0.5)), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+```{r}
+# 1/x
+dockets_data %>% 
+  ggplot(aes(x = (1/(number_prior_dockets + 0.5)), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+```{r}
+# 1/x^2
+dockets_data %>% 
+  ggplot(aes(x = (1/((number_prior_dockets + 0.5)^2)), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
 ```
 
 
@@ -899,7 +998,7 @@ Against number of grade F1 offenses.
 plot_response_covariate <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
   a_plot <- a_df %>% 
     ggplot(aes(x = {{covariate_var}}, y = {{response_var}})) +
-    geom_point(alpha = 0.3) +
+    geom_point(alpha = 0.5, color = "darkolivegreen4") +
     labs(title = "No transformation")
   return(a_plot)
 }
@@ -908,7 +1007,7 @@ plot_logresponse_covariate <- function(a_df = dockets_data, response_var = total
   a_plot <- a_df %>% 
     ggplot(aes(x = {{covariate_var}},
                y = log({{response_var}} + 0.5))) +
-    geom_point(alpha = 0.3) +
+    geom_point(alpha = 0.5, color = "darkolivegreen4") +
     labs(title = "Log transformation")
   return(a_plot)
 }
@@ -998,6 +1097,100 @@ Against the number of H2 offenses.
 ```{r}
 p1 <- plot_response_covariate(covariate_var = H2)
 p2 <-  plot_logresponse_covariate(covariate_var = H2)
+p1 + p2
+```
+
+
+### log(confinement) and log(grade severity)
+```{r}
+plot_loglog <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
+  a_plot <- a_df %>% 
+    ggplot(aes(x = log({{covariate_var}} + 0.5),
+               y = log({{response_var}} + 0.5))) +
+    geom_point(alpha = 0.5, color = "darkolivegreen4") +
+    labs(title = "Log-Log")
+  return(a_plot)
+}
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = `F`)
+p2 <- plot_loglog(covariate_var = `F`)
+p1 + p2
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = F1)
+p2 <- plot_loglog(covariate_var = F1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = F2)
+p2 <- plot_loglog(covariate_var = F2)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = F3)
+p2 <- plot_loglog(covariate_var = F3)
+p1 + p2
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M)
+p2 <- plot_loglog(covariate_var = M)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M1)
+p2 <- plot_loglog(covariate_var = M1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M2)
+p2 <- plot_loglog(covariate_var = M2)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M3)
+p2 <- plot_loglog(covariate_var = M3)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S)
+p2 <- plot_loglog(covariate_var = S)
+p1 + p2
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S1)
+p2 <- plot_loglog(covariate_var = S1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S2)
+p2 <- plot_loglog(covariate_var = S2)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S3)
+p2 <- plot_loglog(covariate_var = S3)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = IC)
+p2 <- plot_loglog(covariate_var = IC)
+p1 + p2
+```
+
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = H1)
+p2 <- plot_loglog(covariate_var = H1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = H2)
+p2 <- plot_loglog(covariate_var = H2)
 p1 + p2
 ```
 

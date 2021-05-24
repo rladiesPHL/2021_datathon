@@ -374,11 +374,22 @@ judge_iG_total_link_log <- glmer((total_confinement_days + 0.5) ~ 1 + gender + r
 ```
 
 ```{r}
-
+# This chuck keeps on running.
+# log_S1, log_S2, log_S3, and log_IC are excluded because they vary very little, their 
+# inclusion would result in glmer warning : “Downdated VtV is not positive definite”
 judge_iG_total_link_log <- glmer((total_confinement_days + 1.5) ~ 1 + gender + race + log_age +
                                    log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
                                    log_F1 + log_F2 + log_F3 + log_S + 
-                                  log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
+                                   court_types_pac + year + month + 
+                                   (1 | judge_id), data = dockets_data,
+                                 family = inverse.gaussian(link = "log"))
+```
+```{r}
+judge_iG_total_link_log <- glmer((total_confinement_days + 1.5) ~ 1 + gender + race + age +
+                                   log_prior_dockets + log_M + log_M1 + log_M2 + log_M3 + log_F +
+                                   log_F1 + log_F2 + log_F3 + log_S + 
+                                   log_H1 + log_H2 + court_types_cp + court_types_mc +
                                    court_types_pac + year + month + 
                                    (1 | judge_id), data = dockets_data,
                                  family = inverse.gaussian(link = "log"))
