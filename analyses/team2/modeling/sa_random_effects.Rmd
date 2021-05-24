@@ -1,0 +1,1354 @@
+---
+title: "Random Coefficient Models"
+author: "Shanti Agung"
+date: "4/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This notebook is an attempt to model judge harshness using random effects model.
+
+```{r}
+library(patchwork)
+library(tidyverse)
+```
+
+
+```{r}
+# Make sure the source file (docket details data) exists
+source_file <- file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                         "data", "docket_details.csv")
+stopifnot(file.exists(source_file))
+```
+
+
+```{r}
+# load dataset
+ddcols = cols(
+  docket_id = col_double(),
+  gender = col_character(),
+  race = col_character(),
+  date_of_birth = col_date(format = ""),
+  arrest_date = col_date(format = ""),
+  complaint_date = col_date(format = ""),
+  disposition_date = col_date(format = ""),
+  filing_date = col_date(format = ""),
+  initiation_date = col_date(format = ""),
+  status_name = col_character(),
+  court_office__court__display_name = col_character(),
+  current_processing_status__processing_status = col_character(),
+  current_processing_status__status_change_datetime = col_date(format = ""),
+  municipality__name = col_character(),
+  municipality__county__name = col_character(),
+  judicial_districts = col_character(),
+  court_office_types = col_character(),
+  court_types = col_character(),
+  representation_type = col_character(),
+  M = col_double(),
+  M3 = col_double(),
+  F1 = col_double(),
+  F3 = col_double(),
+  F2 = col_double(),
+  M1 = col_double(),
+  M2 = col_double(),
+  S = col_double(),
+  `F` = col_double(),
+  IC = col_double(),
+  H2 = col_double(),
+  H1 = col_double(),
+  S2 = col_double(),
+  S1 = col_double(),
+  S3 = col_double(),
+  judge_id = col_double(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  number_prior_dockets = col_double(),
+  total_confinement_days = col_double(),
+  max_confinement_days = col_double(),
+  age = col_double(),
+  court_types_cp = col_double(),
+  court_types_mc = col_double(),
+  court_types_pac = col_double(),
+  court_office_types_commonwealth = col_double(),
+  court_office_types_criminal = col_double(),
+  court_office_types_municipal = col_double(),
+  court_office_types_supreme = col_double(),
+  court_office_types_suprerior = col_double()
+)
+
+dockets <- readr::read_csv(source_file, col_types = ddcols)
+```
+
+
+## Subset data
+
+Subset data based on:
+* year: use dockets that are filed prior to 2020 (year 2010 - 2019)
+* status_name: use dockets that have status of "Closed" and "Adjudicated" (exclude: "Active" and "Inactive")
+* judge_id: use dockets that have non missing values in `judge_id` (exclude dockets that have missing values in judge names)
+
+
+```{r}
+dockets <- dockets %>% 
+  mutate(year = lubridate::year(filing_date),
+         month = lubridate::month(filing_date, label = TRUE, abbr = TRUE)) %>% 
+  filter(year < 2020) %>% 
+  filter(status_name %in% c("Closed", "Adjudicated")) %>% 
+  filter(!is.na(judge_id)) %>% 
+  filter(!is.na(total_confinement_days))
+```
+
+Subset variables for analysis.
+```{r}
+dockets_data <- dockets[,c("docket_id", "total_confinement_days", "max_confinement_days",
+                           "gender", "age","race","number_prior_dockets", "M", "M1", "M2", "M3",
+                           "F", "F1", "F2", "F3", "S", "S1", "S2", "S3", "IC", "H1", "H2",
+                           "court_types_cp", "court_types_mc", "court_types_pac", "year", "month",
+                           "judge_id")]
+```
+
+For now, drop observations with any missing data.
+
+```{r}
+dockets_data <- na.omit(dockets_data)
+```
+
+
+### Tidy variables
+
+```{r}
+glimpse(dockets_data)
+```
+
+Recode `gender`, `race`, `judge_id`, `court_types_cp`, `court_types_mc`, and `court_types_pac` into factors.
+
+```{r}
+gender_levels <- c("Female", "Male")
+race_levels <- c("Asian", "Asian/Pacific Islander", "Bi-Racial", "Black",
+                 "Native American/Alaskan Native", "Unknown/Unreported",
+                 "White")
+
+dockets_data <- dockets_data %>% 
+  mutate(gender = factor(gender, level = gender_levels),
+         race = factor(race, level = race_levels),
+         court_types_cp = factor(court_types_cp),
+         court_types_mc = factor(court_types_mc),
+         court_types_pac = factor(court_types_pac),
+         judge_id = factor(judge_id),
+         year = factor(year, ordered = TRUE))
+
+```
+
+
+```{r}
+glimpse(dockets_data)
+```
+
+
+## EDA on the subset data
+
+### cases
+Number of closed and adjudicated cases from 2010 to 2019
+```{r}
+dockets %>% 
+  ggplot(aes(x = as.factor(year))) +
+  geom_bar(aes(fill = status_name), position = "dodge")
+```
+Very few Adjudicated cases.
+
+```{r}
+dockets %>% 
+  count(status_name)
+```
+### judges
+
+How many judges are there?
+```{r}
+dockets_data %>% 
+  distinct(judge_id) %>% 
+  count()
+```
+
+Number of judges in each year
+```{r}
+dockets_data %>% 
+  distinct(judge_id, year) %>% 
+  ggplot(aes(x = year)) +
+  geom_bar()
+```
+
+Number of cases per judge
+```{r}
+dockets_data %>% 
+  count(judge_id) %>% 
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 200)
+```
+`n` in the above plot is the number of cases that a judge handles within the 2010-219 period. What is the few observations with n > 15000?
+
+```{r}
+dockets_data %>% 
+  count(judge_id) %>% 
+  rename(num_cases = n) %>% 
+  arrange(num_cases) %>% 
+  count(num_cases) %>% 
+  rename(num_judge_ids = n) %>%
+  arrange(num_cases)
+  
+```
+
+```{r}
+dockets_data %>% 
+  count(judge_id) %>% 
+  filter(n > 15000)
+```
+
+`judge_id` == 111 has 18017 cases
+
+```{r}
+dockets %>%
+  filter(judge_id == 111) %>% 
+  select(disposing_authority__last_name, disposing_authority__first_name, disposing_authority__middle_name)
+```
+
+### total confinement days
+
+How does the distribution of `total_confinement_days` look like?
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = total_confinement_days)) +
+  geom_histogram(binwidth = 700)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = total_confinement_days)) +
+  geom_histogram(binwidth = 500) +
+  coord_cartesian(ylim = c(0,100))
+```
+### max confinement days
+
+How does the distribution of `max_confinement_days` look like?
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = max_confinement_days)) +
+  geom_histogram(binwidth = 250)
+```
+
+### Age
+
+```{r}
+summary(dockets_data$age)
+```
+
+Some dockets have missing values for age, and the min age -1, uh-oh...
+
+```{r}
+dockets_data %>% 
+  arrange(age)
+```
+
+Three docket_ids have defendant that are less than 3 years old. Looking at dockets' original (raw) dataset, these entries seem to be data entry typo.
+
+```{r}
+dockets_data %>%
+  filter(age > 10) %>% 
+  ggplot(aes(x = age)) +
+  geom_histogram(binwidth = 4)
+```
+```{r}
+dockets_data %>%
+  filter(age > 10) %>% 
+  ggplot(aes(x = log(age))) +
+  geom_histogram()
+```
+
+### number_prior_dockets
+
+```{r}
+summary(dockets_data$number_prior_dockets)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets)) +
+  geom_histogram(binwidth = 3)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets)) +
+  geom_histogram(binwidth = 3) +
+  coord_cartesian(ylim = c(0, 2700))
+```
+### grade offenses
+```{r}
+summary(dockets_data$M1)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M1)) +
+  geom_histogram(binwidth = 3)
+```
+
+
+## Tidy variables again
+
+```{r}
+dockets_data <- dockets_data %>% 
+  filter(age > 10) # %>%  # drop dockets with defendants' age < 10 years
+  # mutate(number_prior_dockets_scaled = scale(number_prior_dockets),
+  #        grade_M_scaled = scale(M),
+  #        grade_M1_scaled = scale(M1),
+  #        grade_M2_scaled = scale(M2),
+  #        grade_M3_scaled = scale(M3),
+  #        grade_F_scaled = scale(`F`),
+  #        grade_F1_scaled = scale(F1),
+  #        grade_F2_scaled = scale(F2),
+  #        grade_F3_scaled = scale(F3),
+  #        grade_S_scaled = scale(S),
+  #        grade_S1_scaled = scale(S1),
+  #        grade_S2_scaled = scale(S2),
+  #        grade_S3_scaled = scale(S3),
+  #        grade_IC_scaled = scale(IC),
+  #        grade_H1_scaled = scale(H1),
+  #        grade_H2_scaled = scale(H2)
+#         )
+```
+
+```{r}
+glimpse(dockets_data)
+```
+```{r}
+dockets_data %>% count(judge_id) %>% count()
+```
+
+## Check response for possible transformation
+
+### total confinement days
+
+```{r}
+p1_total <- dockets_data %>% 
+  ggplot(aes(x = total_confinement_days)) +
+  geom_histogram(binwidth = 700) +
+  labs(title = "Histogram: total confinement days",
+       x = "total confinement days")
+```
+
+```{r}
+p2_total <- dockets_data %>% 
+  ggplot(aes(x = log(total_confinement_days + 0.5))) +
+  geom_histogram(binwidth = 0.7) +
+  labs(title = "Histogram: log total confinement days",
+       x = "log(total confinement days)")
+```
+
+```{r}
+p1_total + p2_total
+```
+
+### max confinement days
+
+```{r}
+p1_max <- dockets_data %>% 
+  ggplot(aes(x = max_confinement_days)) +
+  geom_histogram(binwidth = 250) +
+  labs(title = "Histogram: max confinement days",
+       x = "max confinement days")
+```
+
+```{r}
+p2_max <- dockets_data %>% 
+  ggplot(aes(x = log(max_confinement_days + 0.5))) +
+  geom_histogram(binwidth = 0.7) +
+  labs(title = "Histogram: log max confinement days",
+       x = "log(max confinement days)")
+```
+
+```{r}
+p1_max + p2_max
+```
+
+## Plot relationships
+
+### confinement and age
+
+#### without transformation
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, y = total_confinement_days)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(se = FALSE)
+```
+The plot shows no relationship between total confinement days and age.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, y = max_confinement_days)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(se = FALSE)
+```
+
+The plot shows no relationship between max confinement days and age.
+
+### log(confinement) and age
+
+```{r}
+p1 <- dockets_data %>% 
+  ggplot(aes(x = age, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE)
+```
+
+```{r}
+p2 <- dockets_data %>% 
+  ggplot(aes(x = age, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE)
+```
+
+```{r}
+p1 + p2
+```
+
+```{r}
+dockets_data %>% 
+  filter(total_confinement_days > 0) %>% 
+  ggplot(aes(x = age, y = log(total_confinement_days))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Scatterplots of log total confinement days \nvs. age: Confinement days larger than zero")
+```
+```{r}
+dockets_data %>% 
+  filter(max_confinement_days > 0) %>% 
+  ggplot(aes(x = age, y = log(max_confinement_days))) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Scatterplots of max total confinement days \nvs. age: Confinement days larger than zero")
+```
+
+
+## confinement and gender
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = total_confinement_days)) +
+  geom_boxplot(aes(color = gender)) +
+  coord_flip() +
+  guides(color = FALSE) +
+  labs(title ="Boxplot of Total Confinement Days by Gender")
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = gender), binwidth = 1000) +
+  labs(title = "Histogram of Total Confinement Days by Gender",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(gender~.)
+```
+
+Boxplot and histograms show many extreme values of confinement days in female as well as male defendants. Plots of both gender shows a spike of confinement days around zero. From those plots it is difficult to discern whether there are differences across gender.  
+
+```{r}
+dockets_data %>% 
+  group_by(gender) %>% 
+  summarise(min = min(total_confinement_days), Q1 = quantile(total_confinement_days, 0.25),
+            median = median(total_confinement_days), Q3 = quantile(total_confinement_days, 0.75),
+            max = max(total_confinement_days), mean = mean(total_confinement_days), n = n())
+```
+The distributions of total confinement days of female and male are unimodal skewed to the right, with extreme values on the higher ends. Center of distribution, measured by median, is zero for both gender. The IQR and the range of male distribution are wider than that of female. Accordingly, the mean of male distribution is higher than female's. 
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = max_confinement_days)) +
+  geom_boxplot(aes(color = gender)) +
+  coord_flip() +
+  guides(color = FALSE) +
+  labs(title ="Boxplot of Max Confinement Days by Gender")
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= max_confinement_days)) +
+  geom_histogram(aes(fill = gender), binwidth = 500) +
+  labs(title = "Histogram of Max Confinement Days by Gender",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(gender~.)
+```
+
+```{r}
+# create function to summarize quantitative var by group
+
+summarize_by_group <- function(a_df, grouping_var, y){ 
+  a_df %>% 
+  group_by({{grouping_var}}) %>% 
+  summarise(min = min({{y}}), Q1 = quantile({{y}}, 0.25),
+            median = median({{y}}), Q3 = quantile({{y}}, 0.75),
+            max = max({{y}}), mean = mean({{y}}), n = n())
+}
+```
+
+
+```{r}
+summarize_by_group(dockets_data, gender, max_confinement_days)
+```
+
+Similar comments as for total confinement days applied here.
+
+### confinement and race
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = race, y = total_confinement_days)) +
+  geom_boxplot(aes(color = race)) +
+  coord_flip() +
+  labs(title = "Boxplot of Total Confinement Days by Race", y = "days") +
+  guides(color = FALSE) 
+```
+White, Black, and Asian/Pacific Islander appear to have larger variation in total days of confinement than Bi-Racial, Asian, Native American/Alaskan Native, and Unknown race. Except for Bi-Racial, the center of distribution measured by median, across race is zero. 
+
+```{r}
+summarize_by_group(dockets_data, race, total_confinement_days)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = race, y = max_confinement_days)) +
+  geom_boxplot(aes(color = race)) +
+  coord_flip() +
+  labs(title = "Boxplot of Max Confinement Days by Race", y = "days") +
+  guides(color = FALSE) 
+```
+White, Black, and Asian/Pacific Islander appear to have larger variation in max days of confinement than Bi-Racial, Asian, Native American/Alaskan Native, and Unknown race. Again, except for Bi-Racial, the center of distribution measured by median, across race is zero. 
+
+```{r}
+summarize_by_group(dockets_data, race, max_confinement_days)
+```
+
+### confinement and number of prior dockets
+
+#### without transformation
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) 
+```
+Some defendants have more than 50 dockets associated with them. A few even have more than 150 dockets, yet the total days of confinement of these extreme docket holders are zeros. Not sure whether these are plausible numbers. In the above plot, the spread of total confinement days are wider for smaller number of prior dockets.
+
+```{r}
+dockets_data %>% 
+  filter(number_prior_dockets < 50) %>% 
+  ggplot(aes(x = number_prior_dockets, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE)
+```
+For defendants whose number of prior dockets are less than 50, it does not seem that there is a relationship between number of prior dockets and total confinement days. Aside from the point where number of prior dockets is about 35, the spread of total confinement days appear to be wider when the the number of prior dockets is small, then the spread becomes narrower before it slightly widen when the number of dockets is above 33. 
+
+```{r}
+dockets_data %>% 
+  filter(number_prior_dockets < 50) %>% 
+  ggplot(aes(x = number_prior_dockets, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE)
+```
+For defendants whose number of prior dockets are less than 50, there appear a very weak relationship between number of prior dockets and max confinement days. The spread of max confinement days are wider for smaller number of prior dockets.
+
+#### log(confinement) and number of prior dockets
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) 
+```
+The plot of log total confinement days against the number of prior dockets above shows a seemingly decreasing variance as the number of prior dockets increases. A similar pattern of non-constant variance is seen in the plot of log max confinement days against the number of prior dockets.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) 
+```
+
+### confinement and grade severity
+
+#### without transformation
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Total confinement days")
+```
+
+The plot shows a weak relationship between number of grade F offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = total_confinement_days)) +
+  geom_point(alpha = 0.4, size = 2, color = "darkblue") +
+ # geom_smooth(method = "lm", se = FALSE) +
+  coord_cartesian(xlim = c(0, 25)) +
+  theme_light() +
+  labs(title = "Zoom: Number of grade offenses 0 - 25",
+       x = "Number of grade F offenses",
+       y = "Total confinement days")
+```
+
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE) +
+    labs(x = "Number of grade F1 offenses",
+       y = "Total confinement days")
+```
+The plot shows a moderate relationship between number of grade F1 offenses and total confinement days. Spread is larger when number of grade offenses is smaller.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade F2 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F3, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade F3 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade M offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade M1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade M2 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M3, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate relationship between number of grade M3 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade S offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade S1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade S2 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = IC, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows no relationship between number of grade IC offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H1, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate between number of grade H1 offenses and total confinement days.
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H2, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The plot shows a moderate between number of grade H2 offenses and total confinement days.
+
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = F3, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = M3, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = S3, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = IC, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H1, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = H2, y = max_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+#### log(confinement) and grade severity
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = `F`, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Log total confinement days")
+```
+The plot of log total confinement days against the number of grade F offenses shows non-constant, decreasing, variance. Side by side plots:
+```{r}
+p1 <- dockets_data %>% 
+  ggplot(aes(x = `F`, y = total_confinement_days)) +
+  geom_point(alpha = 0.3) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Total confinement days",
+       title = "No transformation")
+
+p2 <- dockets_data %>% 
+  ggplot(aes(x = `F`, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.3) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Number of grade F offenses",
+       y = "Log total confinement days",
+       title = "Log transformation")
+
+p1 + p2
+```
+
+Against number of grade F1 offenses.
+
+```{r}
+plot_response_covariate <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
+  a_plot <- a_df %>% 
+    ggplot(aes(x = {{covariate_var}}, y = {{response_var}})) +
+    geom_point(alpha = 0.3) +
+    labs(title = "No transformation")
+  return(a_plot)
+}
+
+plot_logresponse_covariate <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
+  a_plot <- a_df %>% 
+    ggplot(aes(x = {{covariate_var}},
+               y = log({{response_var}} + 0.5))) +
+    geom_point(alpha = 0.3) +
+    labs(title = "Log transformation")
+  return(a_plot)
+}
+```
+
+
+```{r}
+p1 <- plot_response_covariate(covariate_var = F1)
+p2 <-  plot_logresponse_covariate(covariate_var = F1)
+p1 + p2
+```
+Against number of grade F2 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = F2)
+p2 <-  plot_logresponse_covariate(covariate_var = F2)
+p1 + p2
+```
+```{r}
+p1 <- plot_response_covariate(covariate_var = F3)
+p2 <-  plot_logresponse_covariate(covariate_var = F3)
+p1 + p2
+```
+Against number of grade M offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M)
+p2 <-  plot_logresponse_covariate(covariate_var = M)
+p1 + p2
+```
+
+Against the number of grade M1 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M1)
+p2 <-  plot_logresponse_covariate(covariate_var = M1)
+p1 + p2
+```
+Against the number of M2 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M2)
+p2 <-  plot_logresponse_covariate(covariate_var = M2)
+p1 + p2
+```
+Against the number of M3 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = M3)
+p2 <-  plot_logresponse_covariate(covariate_var = M3)
+p1 + p2
+```
+Against the number of grade S offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S)
+p2 <-  plot_logresponse_covariate(covariate_var = S)
+p1 + p2
+```
+Against the number of grade S1 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S1)
+p2 <-  plot_logresponse_covariate(covariate_var = S1)
+p1 + p2
+```
+Against the number of grade S2 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S2)
+p2 <-  plot_logresponse_covariate(covariate_var = S2)
+p1 + p2
+```
+Against the number of grade S3 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = S3)
+p2 <-  plot_logresponse_covariate(covariate_var = S3)
+p1 + p2
+```
+Against the number of grade IC offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = IC)
+p2 <-  plot_logresponse_covariate(covariate_var = IC)
+p1 + p2
+```
+
+Against the number of H1 offenses.
+```{r}
+p1 <- plot_response_covariate(covariate_var = H1)
+p2 <-  plot_logresponse_covariate(covariate_var = H1)
+p1 + p2
+```
+Against the number of H2 offenses.
+
+```{r}
+p1 <- plot_response_covariate(covariate_var = H2)
+p2 <-  plot_logresponse_covariate(covariate_var = H2)
+p1 + p2
+```
+
+### confinement and court types
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_cp, y = total_confinement_days)) +
+  geom_boxplot(aes(color = court_types_cp)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = court_types_cp), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days",
+      subtitle = "by whether the docket has been adjudicated at Court of Common Pleas",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(court_types_cp~., scale = "free")
+```
+The range and IQR of total days of confinement of dockets that have been adjudicated at CP, Court of Common Pleas, are larger than those that have not. It appears that dockets that have been adjudicated at CP may have higher total days of confinement than those that have not.
+
+```{r}
+summarize_by_group(dockets_data, court_types_cp, total_confinement_days)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_mc, y = total_confinement_days)) +
+  geom_boxplot(aes(color = court_types_mc)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = court_types_mc), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days",
+      subtitle = "by whether the docket has been adjudicated at Municipal Court",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(court_types_mc~., scale = "free")
+```
+Although the range of total confinement days of dockets that have been adjudicated at MC, Municipal Court, is larger than those that have not, the IQR is similar. 
+
+```{r}
+summarize_by_group(dockets_data, court_types_mc, total_confinement_days)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days)) +
+  geom_boxplot(aes(color = court_types_pac)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x= total_confinement_days)) +
+  geom_histogram(aes(fill = court_types_pac), binwidth = 1000) +
+  labs(title = "Histogram of total confinement days",
+      subtitle = "by whether the docket has been adjudicated at PA Appellate Court",
+       x = "days") +
+  guides(fill = FALSE) +
+  facet_grid(court_types_pac~., scale = "free")
+```
+The range of total confinement days of dockets that have been adjudicated at PAC, PA Appellate Court, is smaller than those that have not, although its IQR is larger than cases that have not been adjudicated at PAC. 
+
+```{r}
+summarize_by_group(dockets_data, court_types_pac, total_confinement_days)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Total confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_cp, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Total confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = total_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Total confinement days by whether the case was adjudicated at CP",
+       y = "days", x = "Case adjudicated at Court of Common Pleas") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = max_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Max confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_cp, labeller = "label_both") +
+  coord_flip()
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = max_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Max confinement days by whether the case was adjudicated at PAC",
+       y = "days", x = "Case adjudicated at PA Appellate Court") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = court_types_pac, y = max_confinement_days, color = court_types_pac)) +
+  geom_boxplot() +
+  labs(title = "Max confinement days by whether the case was adjudicated at CP",
+       y = "days", x = "Case adjudicated at Court of Common Pleas") +
+  guides(color = FALSE) +
+  facet_wrap(~court_types_mc, labeller = "label_both") +
+  coord_flip()
+```
+Do we have dockets that were not adjudicated at any of these courts? None. Looks good.
+```{r}
+dockets_data %>% 
+  filter(court_types_cp == 0 & court_types_mc == 0 & court_types_pac == 0) %>% 
+  count()
+```
+
+
+### confinement and year
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = year, y = total_confinement_days)) +
+  geom_boxplot(aes(color = year)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+The range of total confinement days across year seems to decline. The IQR and median are generally similar across years. The mean of total confinement days appears decreasing.  
+
+```{r}
+summarize_by_group(dockets_data, year, total_confinement_days)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = year, y = max_confinement_days)) +
+  geom_boxplot(aes(color = year)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+Probably because of the way max confinement days is constructed, the range across year seems similar. The IQR and median are also generally similar across years. The mean of max confinement days appears slightly decreasing.  
+
+```{r}
+summarize_by_group(dockets_data, year, max_confinement_days)
+```
+
+### confinement and month
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = month, y = total_confinement_days)) +
+  geom_boxplot(aes(color = month)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+summarize_by_group(dockets_data, month, total_confinement_days)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = month, y = max_confinement_days)) +
+  geom_boxplot(aes(color = month)) +
+  coord_flip() +
+  guides(color = FALSE)
+```
+```{r}
+summarize_by_group(dockets_data, month, max_confinement_days)
+```
+
+## Random Effects Model: No transformation on response variables
+
+```{r}
+library(lme4)
+```
+
+### Dependent variable: Total confinement days
+
+Model specification
+*Level 1* $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{47}x_{47} + e_{ij}$$
+
+
+*Level 2* $$\beta_{0j} = \beta_{0} + u_{0j}$$
+
+where $j  = \text{judge_id}$ and $x$s are the covariates.
+
+
+```{r}
+judge_total_intercept_model <- lmer(total_confinement_days ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+
+```{r}
+summary(judge_total_intercept_model)
+```
+```{r}
+ranef(judge_total_intercept_model)$judge_id
+```
+
+
+```{r}
+judge_total_ranef <- tibble(ranef(judge_total_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_total_ranef
+```
+
+
+```{r}
+judge_total_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(binwidth = 250, fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Docket total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+summary(judge_total_ranef$ranef_intercept)
+```
+
+Order judges on harshness from high to low.
+```{r}
+judge_total_ranef %>% 
+  arrange(desc(ranef_intercept))
+```
+
+
+```{r}
+dockets %>% 
+  filter(judge_id == 20) %>% 
+  select(disposing_authority__last_name, disposing_authority__first_name,
+         disposing_authority__middle_name)
+```
+
+#### Diagnostics: Total confinement days
+
+fitted vs. residual plot
+```{r}
+plot(judge_total_intercept_model, type = c("p", "smooth"))
+```
+Residual are not scattered evenly around zero along the the ranges of fitted values.
+
+scale-location plots
+```{r}
+plot(judge_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+Assumption of homoskedascity is violated.
+
+QQ plot
+```{r}
+lattice::qqmath(judge_total_intercept_model, id = 0.05)
+```
+Residuals are not normally distributed.
+
+### Dependent variable: Max confinement days
+
+```{r}
+judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+
+```{r}
+judge_max_ranef <- tibble(ranef(judge_max_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+
+```
+
+```{r}
+judge_max_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(binwidth = 250, fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Docket max days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+Order judges on harshness from high to low.
+```{r}
+judge_max_ranef %>% 
+  arrange(desc(ranef_intercept))
+```
+
+#### Diagnostics: Max confinement days
+
+fitted vs. residual plot
+```{r}
+plot(judge_max_intercept_model, type = c("p", "smooth"))
+```
+
+scale-location plots
+```{r}
+plot(judge_max_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+QQ plot
+```{r}
+lattice::qqmath(judge_max_intercept_model, id = 0.05)
+```
+## Random Effects Model: Log transformation on response variables
+
+### Dependent variable: Log total confinement days
+
+```{r}
+judge_log_total_intercept_model <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               number_prior_dockets + M + M1 +
+                               M2 + M3 + `F` +
+                               F1 + F2 + F3 +
+                               S + S1 + S2 +
+                               S3 + IC + H1 + H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+summary(judge_log_total_intercept_model)
+```
+```{r}
+ranef(judge_log_total_intercept_model)$judge_id
+```
+
+```{r}
+judge_log_total_ranef <- tibble(ranef(judge_log_total_intercept_model)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_log_total_ranef
+```
+
+```{r}
+judge_log_total_ranef %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Log total days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+#### Diagnostics: Total confinement days
+
+```{r}
+plot(judge_log_total_intercept_model, type = c("p", "smooth"))
+```
+
+```{r}
+plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+```
+
+```{r}
+lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
+```
+
