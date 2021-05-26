@@ -1,0 +1,238 @@
+---
+title: "ROR"
+author: "Katrina Gutierrez"
+date: "4/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Rates of ROR 
+
+Rate of ROR: proportion of cases where defendants were released on recognizance and did not have to pay bail
+
+Goals: 
+
+- Explore how rates of ROR have changed after Krasner took office
+- Explore any racial disparities in rates of ROR
+
+Findings:
+
+- Overall, the rate of ROR increased after Krasner took office for both misdemeanors and felonies. 
+- For misdemeanors, the rate of ROR grew more for white defendants than black defendants.     
+- For felonies, there did not seem to be a racial disparity in the rate of ROR before and after.
+
+Caveat: 
+
+- We don't have hispanic/latino in our race data. It's possible this information is captured by ethnicity data, which we don't have.  
+
+Krasner's No Cash Bail Policy
+
+- Krasner established a policy in February, 2018, where his office would not request bail for 25 types of offesnes.
+- It's difficult to take a closer look at this policy with our data because there are certain details we don't have.  For example, possession with intent deliver made up almost a third of eligible cases.  However, these cases are inelible if the defendant committed the same offense within six months prior.  We don't have the data to distinguish these cases.  
+- The exploration in this file considers cases regardless of their eligibility for the no cash bail policy.
+
+## Initial set-up
+
+- Most of the initial set up is copied and pasted from "bail and race"
+- I used the code from that file as a basis to create the graphs in this file in general.
+
+Loading libraries
+
+```{r }
+library(tidyverse)
+library(lubridate)
+library(DataExplorer)
+library(vroom)
+library(stringr)
+
+theme_set(theme_minimal())
+theme_update(panel.grid.minor = element_blank())
+```
+
+Loading the full datasets (all years):
+
+```{r}
+larry_date <- as.Date("2018-01-02")
+start_period_1 <- larry_date - period(2, "years")
+end_period_2 <- larry_date + period(2, "years")
+dat_dir <- "C:/Users/katri/Documents/GT/R-Ladies Datathon 2021/csv"
+
+bail_raw <- vroom::vroom(file.path(dat_dir, "bail.csv"))
+off_raw <- vroom::vroom(file.path(dat_dir, "offenses_dispositions.csv")) %>%
+  mutate(
+    grade =
+      grade %>% 
+        fct_relevel("H1", "H2", after = 0) %>% 
+        fct_relevel("IC", after = Inf) %>% 
+        fct_rev() %>%
+        factor(ordered = TRUE)
+  )
+def_raw <- vroom::vroom(file.path(dat_dir, "defendant_docket_details.csv")) %>%
+  replace_na(list(race = "Unknown/Unreported"))
+```
+
+Initial cleaning for bail data
+
+```{r}
+bail <- bail_raw %>%
+  mutate(action_type_name = action_type_name %>%
+    as.factor() %>%
+    relevel(ref = "Set")) %>%
+  filter(
+    participant_name__title == "Judge",
+    !is.na(participant_name__first_name)
+  ) %>%
+  mutate(
+    judge = paste(
+      participant_name__last_name,
+      participant_name__first_name,
+      sep = ","
+    ),
+    action_date = ymd(action_date),
+    action_type_name = factor(action_type_name)
+  )
+```
+
+Creating a dataset where each record is a docket_id with summary bail info 
+
+```{r cache=TRUE}
+bail_grouped <- bail %>%
+  group_by(docket_id) %>%
+  summarise( 
+    date_first_bail = first(action_date),
+    ROR_ever = ifelse(any(type_name == "ROR"), 1, 0) # did the case ever receive ROR
+  )
+```
+
+Creating a subset of the defendant data 
+
+```{r }
+def_subset <- def_raw %>% select(docket_id, race)
+```
+
+Creating a dataset grouped by docket id with the each case's most serious offense 
+
+```{r cache=TRUE}
+offense_grouped <- off_raw %>%
+  filter(!is.na(grade)) %>%
+  group_by(docket_id) %>%
+  summarise(
+    most_ser_off = max(unique(grade))
+  )
+
+```
+
+Merging the grouped data from bail with the defendent data and then the grouped offenses data.
+This produces a dataset with one record per docket_id.
+
+```{r }
+joined <- bail_grouped %>%
+  left_join(def_subset, by = "docket_id") %>%
+  left_join(offense_grouped, by = "docket_id") %>%
+  filter(!is.na(ROR_ever)) %>%
+  mutate(period = case_when(
+    between(date_first_bail, start_period_1, larry_date) ~ "before",
+    between(date_first_bail, larry_date, end_period_2) ~ "after",
+    TRUE ~ NA_character_ 
+  )) %>%
+  mutate(period = period %>%
+    as.factor() %>%
+    relevel(ref = "before")) %>%
+  mutate(grade = ifelse(most_ser_off %in% c("F1", "F2", "F3", "F"), "felony",
+    ifelse(most_ser_off %in% c("M1", "M2", "M3", "M"), "misdemeanor", NA)
+  )) %>%
+  filter(!is.na(period)) %>%
+  filter(!is.na(grade))
+
+```
+
+## Rate of ROR: Misdemeanors vs Felonies
+
+ROR increased for both misdemeanors and felonies.
+
+```{r }
+joined %>%
+  group_by(period, grade) %>%
+  summarise(
+    n_dockets = length(ROR_ever),
+    n_ROR = sum(ROR_ever),
+    ROR_rate = n_ROR / n_dockets,
+  )%>%
+  ggplot(aes(
+    x = grade,
+    y = ROR_rate,
+    fill = period
+  )) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Rate of ROR",
+    y = "Proportion of Cases with ROR", x = "Grade"
+  ) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  coord_cartesian(expand = FALSE)
+```
+
+## Misdemeanors: ROR + Race
+
+- Looked at black and white because these were the most common races.
+- Although the rate of ROR for misdemeanors grew for both races, it increased by a larger amount for white defendants
+- Previous research evaluating the implementation of Krasner's No Cash Bail Policy also found that white defendants disporportionally benefitted. 
+- Before Krasner took office, there was already a racial disparity in rates of ROR.
+
+```{r }
+
+joined %>%
+  filter(grade == "misdemeanor") %>%
+  filter(race %in% c("Black", "White")) %>%
+  group_by(period, race) %>%
+  summarise(
+    n_dockets = length(ROR_ever),
+    n_ROR = sum(ROR_ever),
+    ROR_rate = n_ROR / n_dockets,
+  ) %>%
+  ggplot(aes(
+    x = race,
+    y = ROR_rate,
+    fill = period
+  )) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Rate of ROR - Misdemeanors",
+    y = "Proportion of Cases with ROR", x = "Race"
+  ) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  coord_cartesian(expand = FALSE)
+```
+
+## Felonies: ROR + Race
+
+- For felonies, the ROR rate went from 8% to about 13% for both white and black defendants.
+- Since felonies are more severe than misdemeanors, it makes sense that RORs occur at a lower rate for felonies.
+
+```{r }
+
+joined %>%
+  filter(grade == "felony") %>%
+  filter(race %in% c("Black", "White")) %>%
+  group_by(period, race) %>%
+  summarise(
+    n_dockets = length(ROR_ever),
+    n_ROR = sum(ROR_ever),
+    ROR_rate = n_ROR / n_dockets,
+  ) %>%
+  ggplot(aes(
+    x = race,
+    y = ROR_rate,
+    fill = period
+  )) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Rate of ROR - Felonies",
+    y = "Proportion of Cases with ROR", x = "Race"
+  ) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  coord_cartesian(expand = FALSE)
+```
