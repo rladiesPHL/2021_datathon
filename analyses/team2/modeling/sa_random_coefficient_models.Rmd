@@ -399,9 +399,11 @@ judge_log_total_m2 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race
 ```{r}
 summary(judge_log_total_m2)
 ```
+
 ```{r}
 ranef(judge_log_total_m2)$judge_id
 ```
+
 ```{r}
 judge_log_total_ranef_m2 <- tibble(ranef(judge_log_total_m2)$judge_id) %>%
   rename(ranef_intercept = `(Intercept)`) %>% 
@@ -421,21 +423,166 @@ judge_log_total_ranef_m2 %>%
   )
 ```
 
-Diagnostics
+### Diagnostics
 
 ```{r}
 plot(judge_log_total_m2, type = c("p", "smooth"))
 ```
 
+
 ```{r}
-plot(judge_log_total_m2, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+plot(judge_log_total_m2, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"),
+     ylab=expression(sqrt(abs(resid))),
+     xlab="Fitted values")
 ```
+
 
 ```{r}
 lattice::qqmath(judge_log_total_m2, id = 0.05)
 ```
+
 ```{r}
-qqnorm(residuals(judge_log_total_m2)); qqline(residuals(judge_log_total_m2))
+qqnorm(residuals(judge_log_total_m2), col = "darkgrey"); qqline(residuals(judge_log_total_m2))
+```
+
+```{r}
+judge_log_total_ranef_m2 %>% 
+  ggplot(aes(sample = ranef_intercept)) +
+  geom_qq(color = "darkgrey") +
+  geom_qq_line() +
+  theme_bw() +
+  labs(title = "Normal Q-Q Plot: Judge random effects on intercept",
+       subtitle = "Outcome variable: Log total days of confinement",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles"
+       ) +
+  theme(
+    panel.grid = element_blank()
+  )
+```
+### Testing significance of random effects
+
+```{r}
+judge_log_total_m2_1 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data, REML = FALSE)
+
+judge_log_total_m2_0 <- lm(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month, dockets_data)
+
+anova(judge_log_total_m2_1, judge_log_total_m2_0)
+
+```
+
+
+
+## 2.3 Dependent variable: Log max confinement days, log transformations on some explanatory variables
+
+
+```{r}
+judge_log_max_m2 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+summary(judge_log_max_m2)
+```
+```{r}
+ranef(judge_log_max_m2)$judge_id
+```
+
+```{r}
+judge_log_max_ranef_m2 <- tibble(ranef(judge_log_max_m2)$judge_id) %>%
+  rename(ranef_intercept = `(Intercept)`) %>% 
+  mutate(judge_id = row_number())
+```
+
+```{r}
+judge_log_max_ranef_m2 %>% 
+  ggplot(aes(x = ranef_intercept)) +
+  geom_histogram(fill = "#88398A") +
+  theme_bw() +
+  labs(title = "Judge random effects on intercept",
+       subtitle = "Outcome variable: Log max days of confinement",
+       x = "judge random effect") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+### Diagnostics
+```{r}
+plot(judge_log_max_m2, type = c("p", "smooth"))
+```
+
+```{r}
+plot(judge_log_max_m2, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"),
+     ylab=expression(sqrt(abs(resid))),
+     xlab="Fitted values")
+```
+```{r}
+qqnorm(residuals(judge_log_max_m2), col = "darkgrey"); qqline(residuals(judge_log_max_m2))
+```
+```{r}
+judge_log_max_ranef_m2 %>% 
+  ggplot(aes(sample = ranef_intercept)) +
+  geom_qq(color = "darkgrey") +
+  geom_qq_line() +
+  theme_bw() +
+  labs(title = "Normal Q-Q Plot: Judge random effects on intercept",
+       subtitle = "Outcome variable: Log max days of confinement",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles"
+       ) +
+  theme(
+    panel.grid = element_blank()
+  )
+```
+
+### Testing significance of random effects
+
+```{r}
+judge_log_max_m2_1 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data, REML = FALSE)
+
+judge_log_max_m2_0 <- lm(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month, dockets_data)
+
+anova(judge_log_max_m2_1, judge_log_max_m2_0)
+
 ```
 
 

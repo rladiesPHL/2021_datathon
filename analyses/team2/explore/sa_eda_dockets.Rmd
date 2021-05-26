@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 This notebook is to explore docket level dataset.
 
 ```{r}
+library(MASS)
 library(patchwork)
 library(tidyverse)
 ```
