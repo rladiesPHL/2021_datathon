@@ -130,19 +130,34 @@ subset_dockets <- function(dockets){
 #' Tidy judge fixed effects.
 #'
 #' Take a fixed effect model. Judge fixed effect estimates that are not statistically 
-#' different from zero at alpha 0.1 is replaced with zeros.
+#' different from zero at alpha 0.1 is replaced with zeros. Harshness is "low" if judge fixed
+#' effect is less than Q1 (first quartile), "medium" if a judge fixed effect is between Q1 and Q3,
+#' and "high" if it is larger than Q3.
 #'
 #' @param model the fitted fixed effect model.
 #'
 #' @return A data frame
 #' @export
 tidy_judge_fe <- function(model){
+  # extract judge fixed effects
   tidied <- broom::tidy(model) %>% 
     mutate(is_judge = stringr::str_detect(term, pattern = "judge_id")) %>% 
     filter(is_judge) %>% 
     mutate(judge_id = stringr::str_extract(term, "(\\d)+"),
            judge_fe = if_else(p.value < 0.1, estimate, 0)) %>% 
     select(judge_id, judge_fe)
+  
+  # create categories of harshness
+  harshness_level <- c("low", "medium", "high")
+  Q1 <- quantile(tidied$judge_fe, 0.25)
+  Q3 <- quantile(tidied$judge_fe, 0.75)
+  
+  tidied <- tidied %>% 
+    mutate(harshness = case_when(judge_fe < Q1 ~ "low",
+                                 judge_fe >= Q1 & judge_fe < Q3 ~ "medium",
+                                 TRUE ~ "high"),
+           harshness = factor(harshness, levels = harshness_level)
+    )
   
   return(tidied)
 }
