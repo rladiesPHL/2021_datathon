@@ -161,5 +161,36 @@ tidy_judge_fe <- function(model){
   
   return(tidied)
 }
+
+
+#' Tidy judge random effects.
+#'
+#' Take a mixed effect model. Harshness is "low" if a judge random effect on intercept
+#' is less than Q1 (first quartile), "medium" if a judge random effect is between Q1 and Q3,
+#' and "high" if it is larger than Q3.
+#'
+#' @param model the fitted mixed effect model.
+#'
+#' @return A data frame
+#' @export
+tidy_judge_ranef <- function(model){
+  # extract judge random effects
+  tidied <- data.frame(ranef(model)$judge_id) %>% 
+    add_rownames(var = "judge_id") %>% 
+    rename(ranef_intercept = X.Intercept.)
   
+  # create categories of harshness
+  harshness_level <- c("low", "medium", "high")
+  Q1 <- quantile(tidied$ranef_intercept, 0.25)
+  Q3 <- quantile(tidied$ranef_intercept, 0.75)
+  
+  tidied <- tidied %>% 
+    mutate(harshness = case_when(ranef_intercept < Q1 ~ "low",
+                                 ranef_intercept >= Q1 & ranef_intercept < Q3 ~ "medium",
+                                 TRUE ~ "high"),
+           harshness = factor(harshness, levels = harshness_level)
+    )
+  
+  return(tidied)
+}  
   
