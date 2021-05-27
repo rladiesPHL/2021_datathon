@@ -15,9 +15,11 @@ This notebook is an attempt to model judge harshness using dummy variable models
 ```{r}
 library(patchwork)
 library(tidyverse)
+library(broom)
 library(lme4)
 library(tweedie)
 library(statmod)
+library(stringr)
 ```
 
 ```{r}
@@ -227,6 +229,7 @@ qqnorm(qresid(judge_total_m2), main = "Quantile residuals (set 1)", las=1); qqli
 ```{r}
 qqnorm(qresid(judge_total_m2), main = "Quantile residuals (set 2)", las=1); qqline(qresid(judge_total_m2))
 ```
+
 ### on full dockets: model that includes log grade severity
 
 
@@ -268,22 +271,20 @@ summary(judge_total_m3)
 
 #### Diagnostics
 
-
-
 ```{r}
-qresid1 <- qresid(judge_total_m3)   # Quantile resids, replication 1
-qresid2 <- qresid(judge_total_m3)   # Quantile resids, replication 2
+qresid1_total_m3 <- qresid(judge_total_m3)   # Quantile resids, replication 1
+qresid2_total_m3 <- qresid(judge_total_m3)   # Quantile resids, replication 2
 ```
 
 ```{r}
-qqnorm(qresid1, main = "Quantile residuals (set 1)", las=1); qqline(qresid1)
+qqnorm(qresid1_total_m3, main = "Quantile residuals (set 1)", las=1); qqline(qresid1_total_m3)
 ```
 ```{r}
-qqnorm(qresid2, main = "Quantile residuals (set 2)", las=1); qqline(qresid2)
+qqnorm(qresid2_total_m3, main = "Quantile residuals (set 2)", las=1); qqline(qresid2_total_m3)
 ```
 
 ```{r}
-p1 <- data.frame(qresid = qresid1, mu_hat = fitted(judge_total_m3)) %>% 
+p1 <- data.frame(qresid = qresid1_total_m3, mu_hat = fitted(judge_total_m3)) %>% 
   ggplot(aes(x = mu_hat, y = qresid)) +
   geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
   geom_smooth(color = "aquamarine4", se = FALSE) +
@@ -296,11 +297,11 @@ p1 <- data.frame(qresid = qresid1, mu_hat = fitted(judge_total_m3)) %>%
 p1
 ```
 ```{r}
-plot(qresid2 ~ fitted(judge_total_m3), las=1,
+plot(qresid2_total_m3 ~ fitted(judge_total_m3), las=1,
      xlab = "Fitted values", ylab = "Quantile residuals")
 ```
 ```{r}
-p2 <- data.frame(qresid = qresid1, log_prior_dockets = dockets_data$log_prior_dockets) %>% 
+p2 <- data.frame(qresid = qresid1_total_m3, log_prior_dockets = dockets_data$log_prior_dockets) %>% 
   ggplot(aes(x = log_prior_dockets, y = qresid)) +
   geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
   geom_smooth(color = "aquamarine4", se = FALSE) +
@@ -312,8 +313,8 @@ p2 <- data.frame(qresid = qresid1, log_prior_dockets = dockets_data$log_prior_do
 p2
 ```
 ```{r}
-plot_qresid_explanatory <- function(explanatory_var, x_label){
- tmp <- data.frame(qresid = qresid1, explanatory_var) %>% 
+plot_qresid_explanatory <- function(qres, explanatory_var, x_label){
+ tmp <- data.frame(qresid = qres, explanatory_var) %>% 
   ggplot(aes(x = explanatory_var, y = qresid)) +
   geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
   geom_smooth(color = "aquamarine4", se = FALSE) +
@@ -324,84 +325,255 @@ plot_qresid_explanatory <- function(explanatory_var, x_label){
 ```
 
 ```{r}
-p3 <- plot_qresid_explanatory(dockets_data$age, "Age")
+plot_qresid_explanatory_factor <- function(qres, explanatory_var, x_label){
+ tmp <- data.frame(qresid = qres, explanatory_var) %>% 
+  ggplot(aes(x = explanatory_var, y = qresid)) +
+  geom_boxplot(color = "aquamarine3") +
+  labs(x = x_label,
+       y = "Quantile residuals")
+ return(tmp)
+}
+```
+
+
+```{r}
+p3 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$age, "Age")
 p3
 ```
 
 ```{r}
-p4 <- plot_qresid_explanatory(dockets_data$gender, "Gender")
+p4 <- plot_qresid_explanatory_factor(qresid1_total_m3, dockets_data$gender, "Gender")
 p4
 ```
 ```{r}
-p5 <- plot_qresid_explanatory(dockets_data$race, "Race") +
+p5 <- plot_qresid_explanatory_factor(qresid1_total_m3, dockets_data$race, "Race") +
   theme(axis.text.x = element_text(angle = 25, hjust = 1))
 p5
 ```
 ```{r}
-p6 <- plot_qresid_explanatory(dockets_data$judge_id, "Judge ID") +
+p6 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$judge_id, "Judge ID") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 3))
 p6
 ```
 ```{r}
-p7 <- plot_qresid_explanatory(dockets_data$log_M, "Log(number of grade M offenses)")
+p7 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_M, "Log(number of grade M offenses)")
 p7
 ```
 
 ```{r}
-p8 <- plot_qresid_explanatory(dockets_data$log_M1, "Log(number of grade M1 offenses)")
+p8 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_M1, "Log(number of grade M1 offenses)")
 p8
 ```
 ```{r}
-p9 <- plot_qresid_explanatory(dockets_data$log_M2, "Log(number of grade M2 offenses)")
+p9 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_M2, "Log(number of grade M2 offenses)")
 p9
 ```
 ```{r}
-p10 <- plot_qresid_explanatory(dockets_data$log_M3, "Log(number of grade M3 offenses)")
+p10 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_M3, "Log(number of grade M3 offenses)")
 p10
 ```
 ```{r}
-p11 <- plot_qresid_explanatory(dockets_data$log_F, "Log(number of grade F offenses)")
+p11 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_F, "Log(number of grade F offenses)")
 p11
 ```
 
 ```{r}
-p12 <- plot_qresid_explanatory(dockets_data$log_F1, "Log(number of grade F1 offenses)")
+p12 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_F1, "Log(number of grade F1 offenses)")
 p12
 ```
 ```{r}
-p13 <- plot_qresid_explanatory(dockets_data$log_F2, "Log(number of grade F2 offenses)")
+p13 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_F2, "Log(number of grade F2 offenses)")
 p13
 ```
 ```{r}
-p14 <- plot_qresid_explanatory(dockets_data$log_F3, "Log(number of grade F3 offenses)")
+p14 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_F3, "Log(number of grade F3 offenses)")
 p14
 ```
 ```{r}
-p15 <- plot_qresid_explanatory(dockets_data$log_S, "Log(number of grade S offenses)")
+p15 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_S, "Log(number of grade S offenses)")
 p15
 ```
 
 ```{r}
-p16 <- plot_qresid_explanatory(dockets_data$log_IC, "Log(number of grade IC offenses)")
+p16 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_IC, "Log(number of grade IC offenses)")
 p16
 ```
 
 ```{r}
-p17 <- plot_qresid_explanatory(dockets_data$log_H1, "Log(number of grade H1 offenses)")
+p17 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_H1, "Log(number of grade H1 offenses)")
 p17
 ```
 ```{r}
-p18 <- plot_qresid_explanatory(dockets_data$log_H2, "Log(number of grade H2 offenses)")
+p18 <- plot_qresid_explanatory(qresid1_total_m3, dockets_data$log_H2, "Log(number of grade H2 offenses)")
 p18
 ```
 ```{r}
 plot(cooks.distance(judge_total_m3), type = "h", las=1,
      ylab = "Cook's distance, D")
 ```
+```{r}
+aug_total_m3 <- augment(judge_total_m3, data = dockets_data)
+```
+
+```{r}
+glimpse(aug_total_m3)
+```
+
+```{r}
+aug_total_m3_ex <- aug_total_m3 %>% 
+  mutate(obsnum = 1:nrow(aug_total_m3 %>% select(.cooksd)))
+
+ggplot(aug_total_m3_ex, aes(x = obsnum, y = .cooksd)) + 
+    geom_point() + 
+    geom_segment(aes(x = obsnum, xend = obsnum, y = 0, yend = .cooksd)) +
+    ggrepel::geom_text_repel(data = aug_total_m3_ex %>% 
+               slice_max(.cooksd, n = 5),
+               aes(label = docket_id)) +
+    labs(x = "Row Number",
+         y = "Cook's Distance",
+         title = "Cook's distance Index plot for aug_total_m3",
+         subtitle = "Subjects with the 5 largest Cook's d values are identified.")
+```
+
 
 ```{r}
 total_m3_inf <- influence.measures(judge_total_m3)
 colSums(total_m3_inf$is.inf)
 ```
 
+#### Tidy judge fixed effects
+
+```{r}
+total_m3_fe <- tidy_judge_fe(judge_total_m3)
+head(total_m3_fe)
+```
+
+
+## Dependent variable: max confinement days
+
+### on full dockets: model that includes log grade severity
+
+Estimate $\xi$:
+
+```{r}
+judge_max_profile_m1 <- tweedie.profile(max_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_data)
+```
+
+
+```{r}
+xi_est_max_m1 <- judge_max_profile_m1$xi.max
+#xi_est_max_m1 <- 1.412245
+xi_est_max_m1
+```
+
+xi_est_max_m1 = 1.412245
+
+```{r}
+judge_max_m1 <- glm(max_confinement_days ~ log_prior_dockets +
+                                            age + judge_id + gender + race + year + month + 
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac - 1,
+                      data = dockets_data,
+                      family = tweedie(var.power = xi_est_max_m1, link.power = 0))
+```
+
+```{r}
+summary(judge_max_m1)
+```
+
+#### Diagnostics
+
+```{r}
+qresid1_max_m1 <- qresid(judge_max_m1)   # Quantile resids, replication 1
+qresid2_max_m1 <- qresid(judge_max_m1)   # Quantile resids, replication 2
+```
+
+```{r}
+qqnorm(qresid1_max_m1, main = "Quantile residuals (set 1)", las=1); qqline(qresid1_max_m1)
+```
+
+
+```{r}
+qqnorm(qresid2_max_m1, main = "Quantile residuals (set 1)", las=1); qqline(qresid2_max_m1)
+```
+
+```{r}
+p1 <- data.frame(qresid = qresid1_max_m1, mu_hat = fitted(judge_max_m1)) %>% 
+  ggplot(aes(x = mu_hat, y = qresid)) +
+  geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
+  geom_smooth(color = "aquamarine4", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  labs(x = "Fitted values",
+       y = "Quantile residuals")
+```
+
+```{r}
+p2 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_prior_dockets,
+                              "Log(number of prior dockets)")
+p1 + p2
+```
+
+```{r}
+p3 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$age, "Age")
+p4 <- plot_qresid_explanatory_factor(qresid1_max_m1, dockets_data$gender, "Gender")
+p5 <- plot_qresid_explanatory_factor(qresid1_max_m1, dockets_data$race, "Race") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+p6 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$judge_id, "Judge ID") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 3))
+p7 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_M, "Log(number of grade M offenses)")
+p8 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_M1, "Log(number of grade M1 offenses)")
+p9 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_M2, "Log(number of grade M2 offenses)")
+p10 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_M3, "Log(number of grade M3 offenses)")
+p11 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_F, "Log(number of grade F offenses)")
+p12 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_F1, "Log(number of grade F1 offenses)")
+p13 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_F2, "Log(number of grade F2 offenses)")
+p14 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_F3, "Log(number of grade F3 offenses)")
+p15 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_S, "Log(number of grade S offenses)")
+p16 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_IC, "Log(number of grade IC offenses)")
+p17 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_H1, "Log(number of grade H1 offenses)")
+p18 <- plot_qresid_explanatory(qresid1_max_m1, dockets_data$log_H2, "Log(number of grade H2 offenses)")
+
+```
+
+```{r}
+(p3 + p4) / (p5 + p6)
+```
+```{r}
+(p7 + p8) / (p9 + p10)
+```
+
+```{r}
+(p11 + p12) / (p13 + p14)
+```
+```{r}
+(p15 + p16) / (p17 + p18)
+```
+
+```{r}
+plot(cooks.distance(judge_max_m1), type = "h", las=1,
+     ylab = "Cook's distance, D")
+```
+
+```{r}
+max_m1_inf <- influence.measures(judge_max_m1)
+colSums(max_m1_inf$is.inf)
+```
+
+
+#### Tidy judge fixed effects
+
+```{r}
+max_m1_fe <- tidy_judge_fe(judge_max_m1)
+head(max_m1_fe)
+```
 
