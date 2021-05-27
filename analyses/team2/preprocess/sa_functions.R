@@ -126,3 +126,25 @@ subset_dockets <- function(dockets){
   
   return(dockets_output_data)
 }
+
+#' Tidy judge fixed effects.
+#'
+#' Take a fixed effect model. Judge fixed effect estimates that are not statistically 
+#' different from zero at alpha 0.1 is replaced with zeros.
+#'
+#' @param model the fitted fixed effect model.
+#'
+#' @return A data frame
+#' @export
+tidy_judge_fe <- function(model){
+  tidied <- broom::tidy(model) %>% 
+    mutate(is_judge = stringr::str_detect(term, pattern = "judge_id")) %>% 
+    filter(is_judge) %>% 
+    mutate(judge_id = stringr::str_extract(term, "(\\d)+"),
+           judge_fe = if_else(p.value < 0.1, estimate, 0)) %>% 
+    select(judge_id, judge_fe)
+  
+  return(tidied)
+}
+  
+  
