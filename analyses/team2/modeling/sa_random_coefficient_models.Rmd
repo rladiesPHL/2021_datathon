@@ -400,15 +400,12 @@ judge_log_total_m2 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race
 summary(judge_log_total_m2)
 ```
 
-```{r}
-ranef(judge_log_total_m2)$judge_id
-```
 
 ```{r}
-judge_log_total_ranef_m2 <- tibble(ranef(judge_log_total_m2)$judge_id) %>%
-  rename(ranef_intercept = `(Intercept)`) %>% 
-  mutate(judge_id = row_number())
+judge_log_total_ranef_m2 <- tidy_judge_ranef(judge_log_total_m2)
+head(judge_log_total_ranef_m2)
 ```
+
 
 ```{r}
 judge_log_total_ranef_m2 %>% 
@@ -506,14 +503,10 @@ judge_log_max_m2 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + a
 ```{r}
 summary(judge_log_max_m2)
 ```
-```{r}
-ranef(judge_log_max_m2)$judge_id
-```
 
 ```{r}
-judge_log_max_ranef_m2 <- tibble(ranef(judge_log_max_m2)$judge_id) %>%
-  rename(ranef_intercept = `(Intercept)`) %>% 
-  mutate(judge_id = row_number())
+judge_log_max_ranef_m2 <- tidy_judge_ranef(judge_log_max_m2)
+head(judge_log_max_ranef_m2)
 ```
 
 ```{r}
