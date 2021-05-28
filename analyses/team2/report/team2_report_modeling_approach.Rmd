@@ -66,6 +66,9 @@ Finally, we included year and month variables to take into account possible seas
 
 ##### Model specification
 
+
+##### Random coefficient model
+
 Random coefficient models are also known, among others, as multilevel models, hierarchical linear models, or mixed-effects models. We specified a simple model shown below.
 
 **Level 1:** $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1i} + \dots + \beta_{p}x_{pi} + e_{ij}$$
@@ -79,6 +82,12 @@ At level 1 equation, we have a response variable *y* defined for a given docket 
 We ran two models, in one model the response variable *y* is `total days of confinement`. In another model, the response variable *y* is `max days of confinement`. Both models included all explanatory variables noted in the earlier subsection. For each model, we retrieved the estimates of random effect on intercept, $u_{0j}$.
 
 Higher values of random effect, $u_{0j}$, lead to higher values of the intercepts. Higher values of the intercepts means longer confinement sentences. Given our definition of harshness, longer confinement sentences indicate harsher judges.
+
+##### Dummy variable model
+
+**Random component:**
+
+**Systematic component:**
 
 ### Data issues
 
@@ -99,7 +108,506 @@ Higher values of random effect, $u_{0j}$, lead to higher values of the intercept
 
 ## Results (3-5 pages)
 
-<span style="color:gray">*You may structure this section in any way that makes results easier to understand and describe.*</span>
+This section requires the following scripts to be executed in sequence:
+* `01_download_data.R`
+* `02_convert_dispositions_periods.R`
+* `03_backfill_grades.R`
+* `04_aggregate_to_dockets.R`
+All those scripts are located in `analysis\team2\preprocess`. The scripts need `rprojroot` installed.
+
+```{r}
+# load required packages
+library(patchwork)
+library(tidyverse)
+library(broom)
+library(lme4)
+library(tweedie)
+library(statmod)
+```
+
+```{r}
+# Source the functions
+source(file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                 "analyses", "team2", "preprocess", "sa_functions.R"))
+```
+
+```{r}
+# Make sure the source file (docket details data) exists
+source_file <- file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                         "data", "docket_details.csv")
+stopifnot(file.exists(source_file))
+```
+
+```{r}
+# load dataset
+ddcols = cols(
+  docket_id = col_double(),
+  gender = col_character(),
+  race = col_character(),
+  date_of_birth = col_date(format = ""),
+  arrest_date = col_date(format = ""),
+  complaint_date = col_date(format = ""),
+  disposition_date = col_date(format = ""),
+  filing_date = col_date(format = ""),
+  initiation_date = col_date(format = ""),
+  status_name = col_character(),
+  court_office__court__display_name = col_character(),
+  current_processing_status__processing_status = col_character(),
+  current_processing_status__status_change_datetime = col_date(format = ""),
+  municipality__name = col_character(),
+  municipality__county__name = col_character(),
+  judicial_districts = col_character(),
+  court_office_types = col_character(),
+  court_types = col_character(),
+  representation_type = col_character(),
+  M = col_double(),
+  M3 = col_double(),
+  F1 = col_double(),
+  F3 = col_double(),
+  F2 = col_double(),
+  M1 = col_double(),
+  M2 = col_double(),
+  S = col_double(),
+  `F` = col_double(),
+  IC = col_double(),
+  H2 = col_double(),
+  H1 = col_double(),
+  S2 = col_double(),
+  S1 = col_double(),
+  S3 = col_double(),
+  judge_id = col_double(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  number_prior_dockets = col_double(),
+  total_confinement_days = col_double(),
+  max_confinement_days = col_double(),
+  age = col_double(),
+  court_types_cp = col_double(),
+  court_types_mc = col_double(),
+  court_types_pac = col_double(),
+  court_office_types_commonwealth = col_double(),
+  court_office_types_criminal = col_double(),
+  court_office_types_municipal = col_double(),
+  court_office_types_supreme = col_double(),
+  court_office_types_suprerior = col_double()
+)
+
+dockets <- readr::read_csv(source_file, col_types = ddcols)
+```
+
+```{r}
+# Subset data for analysis
+dockets_data <- subset_dockets(dockets)
+```
+
+### Preprocess data
+
+```{r}
+# Create factors
+gender_levels <- c("Female", "Male")
+race_levels <- c("Asian", "Asian/Pacific Islander", "Bi-Racial", "Black",
+                 "Native American/Alaskan Native", "Unknown/Unreported",
+                 "White")
+
+dockets_data <- dockets_data %>% 
+  mutate(gender = factor(gender, level = gender_levels),
+         race = factor(race, level = race_levels),
+         court_types_cp = factor(court_types_cp),
+         court_types_mc = factor(court_types_mc),
+         court_types_pac = factor(court_types_pac),
+         judge_id = factor(judge_id),
+         year = factor(year, ordered = TRUE))
+```
+
+```{r}
+# Log transform covariates
+dockets_data <- dockets_data %>% 
+  mutate(log_age = log(age),
+         log_prior_dockets = log(number_prior_dockets + 0.5),
+         log_M = log(M + 0.5),
+         log_M1 = log(M1 + 0.5),
+         log_M2 = log(M2 + 0.5),
+         log_M3 = log(M3 + 0.5),
+         log_F = log(`F` + 0.5),
+         log_F1 = log(F1 + 0.5),
+         log_F2 = log(F2 + 0.5),
+         log_F3 = log(F3 + 0.5),
+         log_S = log(S + 0.5),
+         log_S1 = log(S1 + 0.5),
+         log_S2 = log(S2 + 0.5),
+         log_S3 = log(S3 + 0.5),
+         log_IC = log(IC + 0.5),
+         log_H1 = log(H1 + 0.5),
+         log_H2 = log(H2 + 0.5)
+         )
+```
+
+### Random coefficient model: y = total confinement days
+
+#### Fitting
+```{r}
+total_m1 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+# tidy judge random effects on intercept
+total_m1_ranef <- tidy_judge_ranef(total_m1)
+head(total_m1_ranef)
+```
+
+Testing significance of random effects
+```{r}
+total_m1_1 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data, REML = FALSE)
+
+total_m1_0 <- lm(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month, dockets_data)
+
+anova(total_m1_1, total_m1_0)
+```
+
+
+#### Diagnostics
+
+```{r}
+par(mfrow = c(1,2))
+plot(total_m1, type = c("p", "smooth"))
+plot(total_m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"),
+     ylab=expression(sqrt(abs(resid))),
+     xlab="Fitted values")
+
+```
+
+```{r}
+qqnorm(residuals(total_m1), col = "darkgrey"); qqline(residuals(total_m1))
+```
+
+
+### Random coefficient model: y = max confinement days
+
+#### Fitting
+```{r}
+max_m1 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+
+```{r}
+# tidy judge random effects on intercept
+max_m1_ranef <- tidy_judge_ranef(max_m1)
+head(max_m1_ranef)
+```
+
+Testing significance of random effects
+```{r}
+max_m1_1 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data, REML = FALSE)
+
+max_m1_0 <- lm(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month, dockets_data)
+
+anova(max_m1_1, max_m1_0)
+```
+
+
+#### Diagnostics
+
+```{r}
+par(mfrow = c(1,2))
+plot(max_m1, type = c("p", "smooth"))
+plot(max_m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"),
+     ylab=expression(sqrt(abs(resid))),
+     xlab="Fitted values")
+
+```
+
+```{r}
+qqnorm(residuals(max_m1), col = "darkgrey"); qqline(residuals(max_m1))
+```
+
+### Dummy variable model: y = total confinement days
+
+#### Fitting
+
+Estimate $\xi$:
+```{r}
+# note: this chunk may take 1 hour to run
+total_profile_m2 <- tweedie.profile(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_data)
+```
+
+```{r}
+total_xi_est_m2 <- total_profile_m2$xi.max
+#total_xi_est_m2 <- 1.463265 # result of the estimation chunk above
+total_xi_est_m2
+```
+
+```{r}
+total_m2 <- glm(total_confinement_days ~ log_prior_dockets +
+                                            age + judge_id + gender + race + year + month + 
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac - 1,
+                      data = dockets_data,
+                      family = tweedie(var.power = total_xi_est_m2, link.power = 0))
+```
+
+```{r}
+summary(total_m2)
+```
+
+```{r}
+# tidy judge fixed effects
+total_m2_fe <- tidy_judge_fe(total_m2)
+head(total_m2_fe)
+```
+
+
+#### Diagnostics
+
+```{r}
+qresid1_total_m2 <- qresid(total_m2)   # Quantile resids, replication 1
+qresid2_total_m2 <- qresid(total_m2)   # Quantile resids, replication 2
+par(mfrow = c(1,2))
+qqnorm(qresid1_total_m2, main = "Quantile residuals (set 1)", las=1); qqline(qresid1_total_m2)
+qqnorm(qresid1_total_m2, main = "Quantile residuals (set 2)", las=1); qqline(qresid1_total_m2)
+```
+
+```{r}
+p1 <- data.frame(qresid = qresid1_total_m2, mu_hat = fitted(total_m2)) %>% 
+  ggplot(aes(x = mu_hat, y = qresid)) +
+  geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
+  geom_smooth(color = "aquamarine4", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  labs(x = "Fitted values",
+       y = "Quantile residuals")
+p2 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_prior_dockets,
+                              "Log(number of prior dockets)")
+p3 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$age, "Age")
+p4 <- plot_qresid_explanatory_factor(qresid1_total_m2, dockets_data$gender, "Gender")
+p5 <- plot_qresid_explanatory_factor(qresid1_total_m2, dockets_data$race, "Race") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+p6 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$judge_id, "Judge ID") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 3))
+p7 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M, "Log(number of grade M offenses)")
+p8 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M1, "Log(number of grade M1 offenses)")
+p9 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M2, "Log(number of grade M2 offenses)")
+p10 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M3, "Log(number of grade M3 offenses)")
+p11 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F, "Log(number of grade F offenses)")
+p12 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F1, "Log(number of grade F1 offenses)")
+p13 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F2, "Log(number of grade F2 offenses)")
+p14 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F3, "Log(number of grade F3 offenses)")
+p15 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_S, "Log(number of grade S offenses)")
+p16 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_IC, "Log(number of grade IC offenses)")
+p17 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_H1, "Log(number of grade H1 offenses)")
+p18 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_H2, "Log(number of grade H2 offenses)")
+```
+
+```{r}
+p1 + p2
+```
+
+```{r}
+p3 + p4
+```
+
+```{r}
+p5 + p6
+```
+
+```{r}
+(p7 + p8) / (p9 + p10)
+```
+
+
+```{r}
+(p11 + p12) / (p13 + p14)
+```
+
+```{r}
+(p15 + p16) / (p17 + p18)
+```
+
+```{r}
+plot(cooks.distance(total_m2), type = "h", las=1,
+     ylab = "Cook's distance, D")
+```
+
+```{r}
+total_m2_inf <- influence.measures(total_m2)
+colSums(total_m2_inf$is.inf)
+```
+
+
+### Dummy variable model: y = max confinement days
+
+#### Fitting
+
+Estimate $\xi$:
+```{r}
+# note: this chunk may take 1 hour to run
+max_profile_m2 <- tweedie.profile(max_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_data)
+```
+
+```{r}
+max_xi_est_m2 <- max_profile_m2$xi.max
+#max_xi_est_m2 <- 1.412245 # result of the estimation chunk above
+max_xi_est_m2
+```
+
+```{r}
+max_m2 <- glm(max_confinement_days ~ log_prior_dockets +
+                                            age + judge_id + gender + race + year + month + 
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac - 1,
+                      data = dockets_data,
+                      family = tweedie(var.power = total_xi_est_m2, link.power = 0))
+```
+
+```{r}
+summary(max_m2)
+```
+
+```{r}
+# tidy judge fixed effects
+max_m2_fe <- tidy_judge_fe(max_m2)
+head(max_m2_fe)
+```
+
+
+#### Diagnostics
+
+```{r}
+qresid1_max_m2 <- qresid(max_m2)   # Quantile resids, replication 1
+qresid2_max_m2 <- qresid(max_m2)   # Quantile resids, replication 2
+par(mfrow = c(1,2))
+qqnorm(qresid1_max_m2, main = "Quantile residuals (set 1)", las=1); qqline(qresid1_max_m2)
+qqnorm(qresid1_max_m2, main = "Quantile residuals (set 2)", las=1); qqline(qresid1_max_m2)
+```
+
+```{r}
+p1 <- data.frame(qresid = qresid1_max_m2, mu_hat = fitted(max_m2)) %>% 
+  ggplot(aes(x = mu_hat, y = qresid)) +
+  geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
+  geom_smooth(color = "aquamarine4", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  labs(x = "Fitted values",
+       y = "Quantile residuals")
+p2 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_prior_dockets,
+                              "Log(number of prior dockets)")
+p3 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$age, "Age")
+p4 <- plot_qresid_explanatory_factor(qresid1_max_m2, dockets_data$gender, "Gender")
+p5 <- plot_qresid_explanatory_factor(qresid1_max_m2, dockets_data$race, "Race") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+p6 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$judge_id, "Judge ID") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 3))
+p7 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M, "Log(number of grade M offenses)")
+p8 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M1, "Log(number of grade M1 offenses)")
+p9 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M2, "Log(number of grade M2 offenses)")
+p10 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M3, "Log(number of grade M3 offenses)")
+p11 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F, "Log(number of grade F offenses)")
+p12 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F1, "Log(number of grade F1 offenses)")
+p13 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F2, "Log(number of grade F2 offenses)")
+p14 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F3, "Log(number of grade F3 offenses)")
+p15 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_S, "Log(number of grade S offenses)")
+p16 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_IC, "Log(number of grade IC offenses)")
+p17 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_H1, "Log(number of grade H1 offenses)")
+p18 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_H2, "Log(number of grade H2 offenses)")
+```
+
+```{r}
+p1 + p2
+```
+
+```{r}
+p3 + p4
+```
+
+```{r}
+p5 + p6
+```
+
+```{r}
+(p7 + p8) / (p9 + p10)
+```
+
+
+```{r}
+(p11 + p12) / (p13 + p14)
+```
+
+```{r}
+(p15 + p16) / (p17 + p18)
+```
+
+```{r}
+plot(cooks.distance(max_m2), type = "h", las=1,
+     ylab = "Cook's distance, D")
+```
+
+```{r}
+max_m2_inf <- influence.measures(max_m2)
+colSums(max_m2_inf$is.inf)
+```
 
 
 ## Conclusions and Next Steps (1 page)
