@@ -96,6 +96,8 @@ aggregate_offenses_to_dockets <- function(dispositions, dockets, dockets_defenda
 }
 
 
+
+
 #' Subset docket level dataset.
 #'
 #' Take the output of `aggregate_offense_to_docket()`. Exclude year 2020. 
@@ -127,14 +129,17 @@ subset_dockets <- function(dockets){
   return(dockets_output_data)
 }
 
+
+
+
 #' Tidy judge fixed effects.
 #'
 #' Take a fixed effect model. Judge fixed effect estimates that are not statistically 
 #' different from zero at alpha 0.1 is replaced with zeros. Harshness is "low" if judge fixed
-#' effect is less than Q1 (first quartile), "medium" if a judge fixed effect is between Q1 and Q3,
+#' effect is less than Q1 (the first quartile), "medium" if a judge fixed effect is between Q1 and Q3,
 #' and "high" if it is larger than Q3.
 #'
-#' @param model the fitted fixed effect model.
+#' @param model the fitted fixed effect model
 #'
 #' @return A data frame
 #' @export
@@ -163,13 +168,15 @@ tidy_judge_fe <- function(model){
 }
 
 
+
+
 #' Tidy judge random effects.
 #'
 #' Take a mixed effect model. Harshness is "low" if a judge random effect on intercept
-#' is less than Q1 (first quartile), "medium" if a judge random effect is between Q1 and Q3,
+#' is less than Q1 (the first quartile), "medium" if a judge random effect is between Q1 and Q3,
 #' and "high" if it is larger than Q3.
 #'
-#' @param model the fitted mixed effect model.
+#' @param model the fitted mixed effect model
 #'
 #' @return A data frame
 #' @export
@@ -192,5 +199,48 @@ tidy_judge_ranef <- function(model){
     )
   
   return(tidied)
-}  
+} 
+
+
+
+
+#' Plot quantile residuals against a quantitative explanatory variable.
+#'
+#'
+#' @param qres a numeric vector of quantile residuals
+#' @param explanatory_var a numeric vector of explanatory variable
+#' @param x_label a string that denotes the name of the explanatory variable
+#'
+#' @return a plot
+#' @export
+plot_qresid_explanatory <- function(qres, explanatory_var, x_label){
+  a_plot <- data.frame(qresid = qres, explanatory_var) %>% 
+    ggplot(aes(x = explanatory_var, y = qresid)) +
+    geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
+    geom_smooth(color = "aquamarine4", se = FALSE) +
+    labs(x = x_label,
+         y = "Quantile residuals")
+  return(a_plot)
+}
+
+
+
+
+#' Plot quantile residuals against a factor explanatory variable.
+#'
+#'
+#' @param qres a numeric vector of quantile residuals
+#' @param explanatory_var a factor vector of explanatory variable
+#' @param x_label a string that denotes the name of the explanatory variable
+#'
+#' @return a plot
+#' @export
+plot_qresid_explanatory_factor <- function(qres, explanatory_var, x_label){
+  a_plot <- data.frame(qresid = qres, explanatory_var) %>% 
+    ggplot(aes(x = explanatory_var, y = qresid)) +
+    geom_boxplot(color = "aquamarine3") +
+    labs(x = x_label,
+         y = "Quantile residuals")
+  return(a_plot)
+}
   
