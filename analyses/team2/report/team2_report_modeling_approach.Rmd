@@ -93,7 +93,7 @@ The random effect on intercept, $u_{0j}$, allows us to rank order judges by the 
 
 ##### Dummy variable model
 
-Due to the way they were constructed, our response variables are positive continuous data with exact zeros. Ideally, we would specify a Poisson-Gamma Tweedie generalized linear mixed model. At this point, we specified a Poisson-Gamma Tweedie generalized linear model as shown below.
+Due to the way they were constructed, our response variables are positive continuous data with exact zeros. It may be modeled by the Poisson-Gamma Tweedie generalized linear mixed model. At this point, we specified a Poisson-Gamma Tweedie generalized linear model as shown below.
 
 **Random component:** $$y \sim \text{Tw}_{\xi}(\mu,\phi)$$,
 where $1 < \xi < 2$.
