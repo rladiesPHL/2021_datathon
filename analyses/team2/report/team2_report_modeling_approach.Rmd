@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Executive Summary
 
-* We seek to examine whether some judges are harsher than others. Days of confinement were the metrics of judge harshness. Because judges are presented with different cases, linear regression was used to achieve fairer comparison among judges. 
+* We examined whether some judges are harsher than others. Days of confinement were the metrics of judge harshness. Because judges are presented with different cases, linear regression was used to achieve fairer comparison among judges. 
 
 * Results suggest that there appear to be differences in harshness among judges. 
 
