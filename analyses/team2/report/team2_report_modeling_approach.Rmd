@@ -10,10 +10,19 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Executive Summary (1 page)
-<span style="color:gray">*This section should have up to 5 bullet points summarizing the main conclusions from the analysis. These should be worded in such a way that people who are not data experts can easily understand what actions could be considered given the analysis results. *</span>
+## Executive Summary
 
-## Contributors (1 page)
+* We seek to examine whether some judges are harsher than others. Days of confinement as measures of judge harshness. Because judges are presented with different cases, linear regression was used to achiever fairer comparison among judges. 
+
+* The results suggest that there appear to be differences of harshness among judges. 
+
+* The models allow prediction of the average days of confinement by a judge - thus inferring whether one judge is harsher than another. 
+
+* Estimates from the model were used to categorize judge harshness into low, medium, and high.
+
+* These results are preliminary as diagnostics of the regression models indicate that the models need to be further improved. 
+
+## Contributors 
 
 <span style="color:gray">*This section should list the names and 1-2 sentence descriptions of everyone who worked on the submission. An example is listed below (please replace the example with your own info).*</span>
 
@@ -23,7 +32,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Problem definition and dataset
 
-Our team focused on the problem of judge harshness. We first attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses while others might be presented with cases of light offenses. Besides quantifying harshness, we also sought to answer whether some judges are harsher than others.
+Our team focused on the problem of judge harshness. We first attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses while others might be presented with cases of light offenses. We then sought to answer whether some judges are harsher than others.
 
 We approached the problem in two ways: approach 1 and approach 2. Approach 1 is a visualization of sentencing patterns. Approach 2 is a statistical modeling. Approach 1 is detailed in *kim_eda.Rmd*. This report describes the working and results of Approach 2.
 
@@ -635,6 +644,28 @@ colSums(max_m2_inf$is.inf)
 ```
 
 
-## Conclusions and Next Steps (1 page)
+## Conclusions and Next Steps
 
-<span style="color:gray">*This section should have a bulletpoint list of what conclusions can be drawn from the analyses that were performed, and what next steps should be taken by JAT or anyone working in this area*</span>
+Conclusions:
+
+* Using days of confinement as measures of judge harshness, the results suggest that there appear to be differences of harshness among judges. 
+
+* The random effects on intercepts as well as judge fixed effects allows prediction of the average days of confinement by a judge - thus inferring whether one judge is harsher than another. 
+
+* The random and fixed effects were used to categorize judge harshness into low, medium, and high.
+
+* These results are preliminary as diagnostics of the regression models indicate that the models need to be further improved.
+
+
+Several next steps that should be taken include:
+
+* Examine issues noted in the *Data issues* section: repeated content of `description` and `statute_description`; issues with `sequence_number`, extreme values on the number of grade severity in a docket; issues with birth date of some defendants; and issues with pairing of `defendant_id` and `docket_id`.
+
+* Include additional terms in the model (e.g., interactions and/or polynomial).
+
+* Solve the outliers issues as pointed out by the diagnostics of the fitted models. 
+
+* Consider to include additional explanatory variables, such as location of the trials, attorney (e.g., public attorney, private attorney), and judge related information.
+
+* Implement generalized linear mixed model.
+
