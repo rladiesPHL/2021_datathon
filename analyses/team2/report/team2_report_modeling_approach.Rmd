@@ -10,10 +10,19 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Executive Summary (1 page)
-<span style="color:gray">*This section should have up to 5 bullet points summarizing the main conclusions from the analysis. These should be worded in such a way that people who are not data experts can easily understand what actions could be considered given the analysis results. *</span>
+## Executive Summary
 
-## Contributors (1 page)
+* We examined whether some judges are harsher than others. Days of confinement were the metrics of judge harshness. Because judges are presented with different cases, linear regression was used to achieve fairer comparison among judges. 
+
+* Results suggest that there appear to be differences in harshness among judges. 
+
+* The models allow prediction of the average days of confinement by a judge, inferring whether one judge is harsher than another.  
+
+* Estimates from the model were used to categorize judge harshness into low, medium, and high.
+
+* These results are preliminary as diagnostics of the regression models indicate that the models need to be further improved. 
+
+## Contributors 
 
 <span style="color:gray">*This section should list the names and 1-2 sentence descriptions of everyone who worked on the submission. An example is listed below (please replace the example with your own info).*</span>
 
@@ -21,87 +30,642 @@ knitr::opts_chunk$set(echo = TRUE)
 
 **Data Munging and Pre-processing:** Eamon Caddigan and Shanti Agung
 
-## Problem definition and dataset (1-2 pages)
+## Problem definition and dataset
 
-<span style="color:gray">*Summarize the research question/area your team has worked on.*</span>
+Our team focused on the problem of judge harshness. We first attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses, while others might be presented with cases of light offenses. We then sought to answer whether some judges are harsher than others.
 
-Our team focused on the problem of judge harshness. We first attempted to quantify judge harshness. Among the challenges in quantifying judge harshness is that judges are presented with different cases. For example, some judges might work on cases laden with severe offenses while others might be presented with cases of light offenses. Besides quantifying harshness, we also sought to answer whether some judges are harsher than others.
+We approached the problem in two ways: approach 1 and approach 2. Approach 1 is a visualization of sentencing patterns. Approach 2 is statistical modeling. Approach 1 is detailed in *kim_eda.Rmd*. This report describes the working and results of Approach 2.
 
-We approached the problem in two ways: approach 1 and approach 2. Approach 1 is a visualization of sentencing patterns. Approach 2 is a statistical model known as random coefficient models. Approach 1 is detailed in *kim_eda.Rmd*. This report describes the working and results of Approach 2.
-
-Of the datasets that JAT provided, in Approach 2 we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus likely unusual behavior too, due to the pandemic. Further, we used cases that are completed. That is, docket’s status is: “Closed” or “Adjudicated”. We excluded ongoing cases -- that is, docket status is “Active” or “Inactive” -- because sentencing information in these cases may not reflect the full sentences once these cases are completed. The final dataset that we used to fit the model consists of 176,712 dockets and 186 judges.
+Of the datasets that JAT provided, in Approach 2 we used *defendant_docket_details.csv*, *offenses_dispositions_v3.csv*, and *defendant_docket_id.csv*. We used dockets filed in year 2010 to 2019. Our consideration for this time span was that year 2020 was such an unusual year, thus likely unusual behavior too, due to the pandemic. Further, we used cases that are completed. That is, the docket’s status is: “Closed” or “Adjudicated”. We excluded ongoing cases -- that is, docket status is “Active” or “Inactive” -- because sentencing information in these cases may not reflect the entire sentences once these cases are completed. The final dataset that we used to fit the model consists of 176,712 dockets and 186 judges.
 
 ### Working definitions
 
-*Include here any working definitions that you used (beyond what was outlined in the general description)*
-
 #### Docket as the unit of analysis
 
-Unit of analysis in this approach will be `docket_id` rather than offense. One reason is that judges often make sentencing decision by considering the overall bundle of offenses within a docket rather than per individual offense. For example, a lawyer friend whom we talked to explained that a judge would perceived an offense of stealing a car differently if that offense is the only offense in the docket versus if that offense is followed by other offenses like carrying illegal substances and carrying unlicensed firearms, for instance, in the stolen vehicle. In the later situation, a judge is likely to decide on a harsher sentence for the stolen vehicle offense.   
+The unit of analysis in this approach will be `docket_id` rather than offense. One reason is that judges often make the sentencing decision by considering the overall bundle of offenses within a docket rather than per individual offense. For example, a lawyer friend whom we talked to explained that a judge would perceive an offense of stealing a car differently if that offense is the only offense in the docket versus if that offense is followed by other offenses like carrying illegal substances and carrying unlicensed firearms, for instance, in the stolen vehicle. A judge will likely decide on a harsher sentence for the stolen vehicle offense in the latter situation.      
 
-Another consideration that made `docket_id` a reasonable unit of analysis is that some offenses' sentences are merged with that of other offenses, making sentencing attribution unidentifiable. If judges took this merged approach, the value of `sentence_type` variable in *offenses_dispositions_v3.csv* dataset is "Merged". From the dataset, we could not identify to which offense(s) that an offense was merged to. Further, we could not identify how much of the sentence is attributed to one offense versus to another. Identifying the sentence attributed to an offense is essential for offense to be the unit of analysis.   
+Another consideration that made `docket_id` a reasonable unit of analysis is that some offenses' sentences are merged with that of other offenses, making sentencing attribution unidentifiable. If judges took this merged approach, the value of `sentence_type` variable in *offenses_dispositions_v3.csv* dataset is "Merged". We could not identify to which offense(s) that an offense was merged to. Further, we could not identify how much of the sentence is attributed to one offense versus to another. Identifying the sentence attributed to an offense is essential for an offense to be the unit of analysis.   
 
 ##### Response variables
 
-Metrics that we used to examine judge harshness, and to later construct response variables, is "days of confinement". A harsher judge is defined as a judge who gives longer days of confinement. In the *offenses_dispositions_v3.csv* dataset, an offense has five possible values of `sentence_type`: Confinement, IPP, Merged, No Further Penalty, and Probation.  Using our chosen metrics, the value of "days of confinement" is zero for sentence types other than "Confinement".
+Metrics that we used to examine judge harshness, and to construct response variables later, is "days of confinement". A harsher judge is defined as a judge who gives longer days of confinement. In the *offenses_dispositions_v3.csv* dataset, an offense has five possible values of `sentence_type`: Confinement, IPP, Merged, No Further Penalty, and Probation.  Using our chosen metrics, the value of "days of confinement" is zero for sentence types other than "Confinement".
 
-Because our unit of analysis is a docket, the sentencing decision should also be at the docket level. Sentencing information in the dataset, however, is at the offense level. Therefore, we needed to aggregate the sentencing information from offense level into docket level. Ideally, we would have information on whether a sentence was carried out concurrently or consecutively. Since we did not have that information, we created two response variables: `total days of confinement` and `max days of confinement`.
+Because our unit of analysis is a docket, the sentencing decision should also be at the docket level. Sentencing information in the dataset, however, is at the offense level. Therefore, we needed to aggregate the sentencing information from the offense level into the docket level. Ideally, we would have information on whether a sentence was carried out concurrently or consecutively. Since we did not have that information, we created two response variables: `total days of confinement` and `max days of confinement`.
 
-`total days of confinement` is the summation of days of confinement for offenses, in a docket, that received confinement sentences. By way of its construction, `total days of confinement` treats as if all sentences were executed consecutively. Another response variable is `max days of confinement`. It is the maximum of days of confinement for offenses, in that docket, that received confinement sentences. By way of its construction, this response variable treats as if all sentences were executed concurrently.
+`total days of confinement` is the summation of days of confinement for offenses in a docket that received confinement sentences. By way of its construction, `total days of confinement` treats as if all sentences were executed consecutively. Another response variable is `max days of confinement`. It is the maximum of days of confinement for offenses in the docket that received confinement sentences. By way of its construction, this response variable treats as if all sentences were executed concurrently.
 
-`total days of confinement` and `max days of confinement` are quantitative variables. As an example, if a docket has three offenses listed in which and one offense received 300 days of confinement, another offense received 200 days of confinement, and the other offense received 100 days of confinement. The docket's `total days of confinement` would be 600 days, while its `max days of confinement` would be 300 days. 
+`total days of confinement` and `max days of confinement` are quantitative variables. For example, a docket has three offenses listed in which one offense received 300 days of confinement, another offense received 200 days of confinement, and the other offense received 100 days of confinement.  The docket's `total days of confinement` would be 600 days, while its `max days of confinement` would be 300 days. 
 
 ##### Explanatory variables
 
 We included defendant related explanatory variables, specifically gender of the defendant, race, age, and the number of prior dockets. `gender` is a factor with two levels: Female and Male. `race` is a factor with seven levels: Asian, Asian/Pacific Islander, Bi-Racial, Black, Native American/Alaskan Native, Unknown/Unreported, and White. `age` and `number of prior dockets` are quantitative variables.
 
-If a docket is the first case of a defendant, then the number of prior dockets is zero; if it is the second case for a defendant, then the number of prior dockets is one, and so on. The number of prior docket is deemed important in judges' sentencing decision. A lawyer informed us that an identical offense would receive a harsher sentence if the defendant has prior docket(s) than if the offense is within the defendant's first docket.  
+If a docket is the first case of a defendant, then the number of prior dockets is zero; if it is the second case for a defendant, then the number of prior dockets is one, and so on. The number of prior dockets is deemed important in judges' sentencing decisions. A lawyer informed us that an identical offense would receive a harsher sentence if the defendant has prior docket(s) than if the offense is within the defendant's first docket.  
 
-As mentioned in the problem definition, among challenges when quantifying how harsh a judge is that judges are presented with different kinds of cases, such as differing offense severity within a case. To take into account this differing offense severity thus achieving a fair comparison between judges, we included explanatory variables that reflect severity of offenses in a docket. For each severity grade, we counted the number of offenses in that docket that falls within that particular severity grade. That is, variable `F1` is the the number of grade F1 offenses in the docket; variable `F2` is the number of grade F2 offenses in the docket; variable `M1` is the number of grade M1 offenses in the docket, and so on. `F1`, `F2`, `F3`, `F`, `M`, `M1`, `M2`, `M3`, `S`, `S1`, `S2`, `S3`, `IC`, `H1`, and `H2` are quantitative variables.
+As mentioned in the problem definition, among challenges in quantifying judge harshness is judges are presented with different cases, such as differing offense severity within a case. To take into account this differing offense severity, thus achieving a fair comparison between judges, we included explanatory variables that reflect the severity of offenses in a docket. More specifically, we counted the number of offenses in that docket that falls within that particular severity grade. That is, variable `F1` is the number of grade F1 offenses in the docket; variable `F2` is the number of grade F2 offenses in the docket; variable `M1` is the number of grade M1 offenses in the docket, and so on. `F1`, `F2`, `F3`, `F`, `M`, `M1`, `M2`, `M3`, `S`, `IC`, `H1`, and `H2` are quantitative variables.
 
-We included indicators whether the docket has been adjudicated at Pennsylvania Appellate Court, whether the docket has been adjudicated at Court of Common Pleas, and whether the docket has been adjudicated at Municipal Court. Each of these indicator variables is a factor with two levels: 1 and 0. A lawyer friend explained that a case that is adjudicated at appellate court may have its sentence decisions reviewed back at the district court, or may have some of its sentences deemed inapplicable should a particular law was deemed inapplicable for the case -- all of which may affect the severity of the final sentencing decisions. 
+We included indicators of whether the docket has been adjudicated at Pennsylvania Appellate Court, whether the docket has been adjudicated at Court of Common Pleas, and whether the docket has been adjudicated at Municipal Court. Each of these indicator variables is a factor with two levels: 1 and 0. A lawyer friend explained that a case that is adjudicated at appellate court may have its sentence decisions reviewed back at the district court, or may have some of its sentences deemed inapplicable should a particular law was deemed inapplicable for the case -- all of which may affect the severity of the final sentencing decisions. 
 
 Finally, we included year and month variables to take into account possible seasonality and temporal pattern. `year` and `month` are ordered factors.  
 
 
 ##### Model specification
 
+##### Random coefficient model
+
 Random coefficient models are also known, among others, as multilevel models, hierarchical linear models, or mixed-effects models. We specified a simple model shown below.
 
-**Level 1:** $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1i} + \dots + \beta_{p}x_{pi} + e_{ij}$$
+**Level 1:** $$\log(\text{y}_{ij}) = \beta_{0j} + \beta_{1}x_{1i} + \dots + \beta_{p}x_{pi} + e_{ij}$$
 
 **Level 2:** $$\beta_{0j} = \beta_{0} + u_{0j}$$
 
 where  *i* = docket, and  *j* = judge.
 
-At level 1 equation, we have a response variable *y* defined for a given docket *i* nested within judge *j*. In this specification, the random coefficient is the intercept, $\beta_{0j}$. At level 2 equation, the random effect $u_{0j}$ allows each judge to have a unique intercept.
+At level 1 equation, we have a response variable $\log(\text{y})$ defined for a given docket *i* nested within judge *j*. In this specification, the random coefficient is the intercept, $\beta_{0j}$. At level 2 equation, the random effect $u_{0j}$ allows each judge to have a unique intercept.
 
-We ran two models, in one model the response variable *y* is `total days of confinement`. In another model, the response variable *y* is `max days of confinement`. Both models included all explanatory variables noted in the earlier subsection. For each model, we retrieved the estimates of random effect on intercept, $u_{0j}$.
+We ran two models, in one model *y* that is `total days of confinement` was log-transformed. In another model, *y* that is `max days of confinement` was log-transformed. Log transformation was applied for the distribution of response variable to be more normally distributed and to achieve a more constant variance. 
 
-Higher values of random effect, $u_{0j}$, lead to higher values of the intercepts. Higher values of the intercepts means longer confinement sentences. Given our definition of harshness, longer confinement sentences indicate harsher judges.
+Both models include all explanatory variables noted in the earlier subsection. Grade severity variables and `number of prior dockets` were log-transformed. For each model, we retrieved the estimates of the random effect on intercept, $u_{0j}$.
+
+Higher values of random effect, $u_{0j}$, lead to higher values of the intercepts. Higher values of the intercepts mean longer confinement sentences. Given our definition of harshness, longer confinement sentences indicate harsher judges. 
+
+The random effect on intercept, $u_{0j}$, allows us to rank order judges by the expected additional (or lessening of) confinement sentence that they confer. As noted earlier, higher values of the random intercept suggest harsher judges. Further, we classified judge harshness into "low", "medium", and "high" based on the random effect on intercept. Harshness is "low" if a random effect, $u_{0j}$, is less than the first quartile of the random effects on intercept of all the judges. Harshness is "medium" if a random effect, $u_{0j}$, is between the first and the third quartile. If higher than the third quartile, harshness is classified as "high".
+
+##### Dummy variable model
+
+Due to the way they were constructed, our response variables are positive continuous data with exact zeros. It may be modeled by the Poisson-Gamma Tweedie generalized linear mixed model. At this point, we specified a Poisson-Gamma Tweedie generalized linear model as shown below.
+
+**Random component:** $$y \sim \text{Tw}_{\xi}(\mu,\phi)$$,
+where $1 < \xi < 2$.
+
+**Systematic component:** $$\log \mathbb{E}[y] = \log \mu = \beta_{1}x_{1} + \dots + \beta_{p}x_{p} $$
+
+We ran two models again, in one model *y* is `total days of confinement`. In another model, *y* is `max days of confinement`. Both models include all explanatory variables noted in the *explanatory variables* subsection. Grade severity variables and `number of prior dockets` were log-transformed. Additionally, we included `judge_id` that is a factor with 186 levels (i.e., the number of judges in this analysis) to obtain judge fixed effects.
+
+Higher values of judge fixed effects mean longer confinement sentences. Given our definition of harshness, longer confinement sentences indicate harsher judges. Judge fixed effects allow us to rank order judges by the expected additional (or lessening of) confinement sentence that they confer. We also classified judge harshness into "low", "medium", and "high" based on judge fixed effects. Harshness is "low" if a judge fixed effect is less than the first quartile of the fixed effects of all the judges. Harshness is "medium" if a judge fixed effect is between the first and the third quartile. If a judge fixed effect is higher than the third quartile, harshness is classified as "high". 
+
 
 ### Data issues
 
-*Include any issues or challenges that you noticed in the data, that may be relevant, and any actions taken*
+Among issues that we encountered in *offenses_dispositions_v3.csv* are:
+* Some dockets have repeated content of `description` and `statute_description`
+* `sequence_number` of offenses in a docket may be skipped. For example, `sequence_number` jumps from 1, 2, 3, to 278, 279...
+* `sequence_number` may have entries that do not seem reflect sequence, such as: 99999, 9999, 9998, 9997, 999, 998.
+* Some dockets exhibit extreme values on the number of grade severity. For example, a few dockets have more than 100 F3 offenses listed, and a docket has more than 200 M3 offenses listed.
 
-### Issues and challenges in *offenses_dispositions_v3.csv*
+In the *defendant_docket_details.csv*, several dockets record filing dates that are earlier than the birth year of the defendants, resulting in a negative value of `age`. We excluded these cases from the analyses.
 
-
-### Issues and challenges in *defendant_docket_details.csv*
-
-
-### Issues and challenges in *defendant_docket_id.csv*
-
-* Possibly questionable entries: Some defendants have more than 30 dockets associated with them. A few even have more than 150 dockets. Do these numbers, i.e., dockets per defendant, appear plausible?
+Dataset *defendant_docket_id.csv* was used to identify repeat defendants, mainly to generate the `number of prior dockets` variable. Some defendants have more than 30 dockets associated with them. A few even have more than 150 dockets. We could not verify whether these extreme numbers, i.e., dockets per defendant, are plausible and correct entries from our end.  
 
 
+## Results
+
+This section requires the following scripts to be executed in sequence:
+* `01_download_data.R`
+* `02_convert_dispositions_periods.R`
+* `03_backfill_grades.R`
+* `04_aggregate_to_dockets.R`
+All those scripts are located in `analysis\team2\preprocess`. The scripts need `rprojroot` installed.
+
+```{r}
+# load required packages
+library(patchwork)
+library(tidyverse)
+library(broom)
+library(lme4)
+library(tweedie)
+library(statmod)
+```
+
+```{r}
+# Source the functions
+source(file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                 "analyses", "team2", "preprocess", "sa_functions.R"))
+```
+
+```{r}
+# Make sure the source file (docket details data) exists
+source_file <- file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                         "data", "docket_details.csv")
+stopifnot(file.exists(source_file))
+```
+
+```{r}
+# load dataset
+ddcols = cols(
+  docket_id = col_double(),
+  gender = col_character(),
+  race = col_character(),
+  date_of_birth = col_date(format = ""),
+  arrest_date = col_date(format = ""),
+  complaint_date = col_date(format = ""),
+  disposition_date = col_date(format = ""),
+  filing_date = col_date(format = ""),
+  initiation_date = col_date(format = ""),
+  status_name = col_character(),
+  court_office__court__display_name = col_character(),
+  current_processing_status__processing_status = col_character(),
+  current_processing_status__status_change_datetime = col_date(format = ""),
+  municipality__name = col_character(),
+  municipality__county__name = col_character(),
+  judicial_districts = col_character(),
+  court_office_types = col_character(),
+  court_types = col_character(),
+  representation_type = col_character(),
+  M = col_double(),
+  M3 = col_double(),
+  F1 = col_double(),
+  F3 = col_double(),
+  F2 = col_double(),
+  M1 = col_double(),
+  M2 = col_double(),
+  S = col_double(),
+  `F` = col_double(),
+  IC = col_double(),
+  H2 = col_double(),
+  H1 = col_double(),
+  S2 = col_double(),
+  S1 = col_double(),
+  S3 = col_double(),
+  judge_id = col_double(),
+  disposing_authority__first_name = col_character(),
+  disposing_authority__middle_name = col_character(),
+  disposing_authority__last_name = col_character(),
+  number_prior_dockets = col_double(),
+  total_confinement_days = col_double(),
+  max_confinement_days = col_double(),
+  age = col_double(),
+  court_types_cp = col_double(),
+  court_types_mc = col_double(),
+  court_types_pac = col_double(),
+  court_office_types_commonwealth = col_double(),
+  court_office_types_criminal = col_double(),
+  court_office_types_municipal = col_double(),
+  court_office_types_supreme = col_double(),
+  court_office_types_suprerior = col_double()
+)
+
+dockets <- readr::read_csv(source_file, col_types = ddcols)
+```
+
+```{r}
+# Subset data for analysis
+dockets_data <- subset_dockets(dockets)
+```
+
+### Preprocess data
+
+```{r}
+# Create factors
+gender_levels <- c("Female", "Male")
+race_levels <- c("Asian", "Asian/Pacific Islander", "Bi-Racial", "Black",
+                 "Native American/Alaskan Native", "Unknown/Unreported",
+                 "White")
+
+dockets_data <- dockets_data %>% 
+  mutate(gender = factor(gender, level = gender_levels),
+         race = factor(race, level = race_levels),
+         court_types_cp = factor(court_types_cp),
+         court_types_mc = factor(court_types_mc),
+         court_types_pac = factor(court_types_pac),
+         judge_id = factor(judge_id),
+         year = factor(year, ordered = TRUE))
+```
+
+```{r}
+# Log transform covariates
+dockets_data <- dockets_data %>% 
+  mutate(log_prior_dockets = log(number_prior_dockets + 0.5),
+         log_M = log(M + 0.5),
+         log_M1 = log(M1 + 0.5),
+         log_M2 = log(M2 + 0.5),
+         log_M3 = log(M3 + 0.5),
+         log_F = log(`F` + 0.5),
+         log_F1 = log(F1 + 0.5),
+         log_F2 = log(F2 + 0.5),
+         log_F3 = log(F3 + 0.5),
+         log_S = log(S + 0.5),
+         log_S1 = log(S1 + 0.5),
+         log_S2 = log(S2 + 0.5),
+         log_S3 = log(S3 + 0.5),
+         log_IC = log(IC + 0.5),
+         log_H1 = log(H1 + 0.5),
+         log_H2 = log(H2 + 0.5)
+         )
+```
+
+### Random coefficient model: y = total confinement days
+
+#### Estimation
+```{r}
+total_m1 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+```{r}
+summary(total_m1)
+```
 
 
-## Results (3-5 pages)
+```{r}
+# tidy judge random effects on intercept
+total_m1_ranef <- tidy_judge_ranef(total_m1)
+head(total_m1_ranef)
+```
 
-<span style="color:gray">*You may structure this section in any way that makes results easier to understand and describe.*</span>
+Testing significance of random effects
+```{r}
+total_m1_1 <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data, REML = FALSE)
+
+total_m1_0 <- lm(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month, dockets_data)
+
+anova(total_m1_1, total_m1_0)
+```
 
 
-## Conclusions and Next Steps (1 page)
+#### Diagnostics
 
-<span style="color:gray">*This section should have a bulletpoint list of what conclusions can be drawn from the analyses that were performed, and what next steps should be taken by JAT or anyone working in this area*</span>
+```{r}
+par(mfrow = c(1,2))
+plot(total_m1, type = c("p", "smooth"))
+plot(total_m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"),
+     ylab=expression(sqrt(abs(resid))),
+     xlab="Fitted values")
+
+```
+The plot of residuals against fitted values above shows a pattern, suggesting that the need to build further terms (e.g., interactions, or polynomial) into the model. Moreover, the spread appears to be smaller the larger the fitted values. It indicates that log transformation on the response variable was insufficient to achieve constant variance. 
+
+```{r}
+qqnorm(residuals(total_m1), col = "darkgrey"); qqline(residuals(total_m1))
+```
+The Q-Q plot of the residuals suggests that they are not normally distributed.  
+
+### Random coefficient model: y = max confinement days
+
+#### Estimation
+```{r}
+max_m1 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data)
+```
+```{r}
+summary(max_m1)
+```
+
+
+```{r}
+# tidy judge random effects on intercept
+max_m1_ranef <- tidy_judge_ranef(max_m1)
+head(max_m1_ranef)
+```
+
+Testing significance of random effects
+```{r}
+max_m1_1 <- lmer(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month +
+                               (1 | judge_id), dockets_data, REML = FALSE)
+
+max_m1_0 <- lm(log(max_confinement_days + 0.5) ~ 1 + gender + race + age +
+                               log_prior_dockets + log_M + log_M1 +
+                               log_M2 + log_M3 + log_F +
+                               log_F1 + log_F2 + log_F3 +
+                               log_S + log_S1 + log_S2 +
+                               log_S3 + log_IC + log_H1 + log_H2 +
+                               court_types_cp + court_types_mc + court_types_pac +
+                               year + month, dockets_data)
+
+anova(max_m1_1, max_m1_0)
+```
+
+
+#### Diagnostics
+
+```{r}
+par(mfrow = c(1,2))
+plot(max_m1, type = c("p", "smooth"))
+plot(max_m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"),
+     ylab=expression(sqrt(abs(resid))),
+     xlab="Fitted values")
+
+```
+Similar to the residual plot of the `total_m1` model, the plot of residuals against fitted values of `max_m1` model shows a pattern, suggesting the need to build further terms (e.g., interactions or polynomial) into the model. The spread also appears to be smaller the larger the fitted values. It indicates that log transformation on the response variable was insufficient to achieve constant variance. 
+
+```{r}
+qqnorm(residuals(max_m1), col = "darkgrey"); qqline(residuals(max_m1))
+```
+
+### Dummy variable model: y = total confinement days
+
+#### Estimation
+
+Estimate $\xi$:
+```{r}
+# note: this chunk may take 1 hour to run
+total_profile_m2 <- tweedie.profile(total_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_data)
+```
+
+```{r}
+#total_xi_est_m2 <- total_profile_m2$xi.max
+total_xi_est_m2 <- 1.463265 # result of the estimation chunk above
+total_xi_est_m2
+```
+
+```{r}
+total_m2 <- glm(total_confinement_days ~ log_prior_dockets +
+                                            age + judge_id + gender + race + year + month + 
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac - 1,
+                      data = dockets_data,
+                      family = tweedie(var.power = total_xi_est_m2, link.power = 0))
+```
+
+```{r}
+summary(total_m2)
+```
+
+```{r}
+# tidy judge fixed effects
+total_m2_fe <- tidy_judge_fe(total_m2)
+head(total_m2_fe)
+```
+
+
+#### Diagnostics
+
+```{r}
+qresid1_total_m2 <- qresid(total_m2)   # Quantile resids, replication 1
+qresid2_total_m2 <- qresid(total_m2)   # Quantile resids, replication 2
+par(mfrow = c(1,2))
+qqnorm(qresid1_total_m2, main = "Quantile residuals (set 1)", las=1); qqline(qresid1_total_m2)
+qqnorm(qresid1_total_m2, main = "Quantile residuals (set 2)", las=1); qqline(qresid1_total_m2)
+```
+The Q-Q plots of the quantile residuals suggest that the model is reasonable.
+
+```{r}
+p1 <- data.frame(qresid = qresid1_total_m2, mu_hat = fitted(total_m2)) %>% 
+  ggplot(aes(x = mu_hat, y = qresid)) +
+  geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
+  geom_smooth(color = "aquamarine4", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  labs(x = "Fitted values",
+       y = "Quantile residuals")
+p2 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_prior_dockets,
+                              "Log(number of prior dockets)")
+p3 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$age, "Age")
+p4 <- plot_qresid_explanatory_factor(qresid1_total_m2, dockets_data$gender, "Gender")
+p5 <- plot_qresid_explanatory_factor(qresid1_total_m2, dockets_data$race, "Race") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+p6 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$judge_id, "Judge ID") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 3))
+p7 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M, "Log(number of grade M offenses)")
+p8 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M1, "Log(number of grade M1 offenses)")
+p9 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M2, "Log(number of grade M2 offenses)")
+p10 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_M3, "Log(number of grade M3 offenses)")
+p11 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F, "Log(number of grade F offenses)")
+p12 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F1, "Log(number of grade F1 offenses)")
+p13 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F2, "Log(number of grade F2 offenses)")
+p14 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_F3, "Log(number of grade F3 offenses)")
+p15 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_S, "Log(number of grade S offenses)")
+p16 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_IC, "Log(number of grade IC offenses)")
+p17 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_H1, "Log(number of grade H1 offenses)")
+p18 <- plot_qresid_explanatory(qresid1_total_m2, dockets_data$log_H2, "Log(number of grade H2 offenses)")
+```
+
+```{r}
+p1 + p2
+```
+The plot of quantile residuals against fitted values in the left panel above shows a pattern, suggesting that the need to build further terms (e.g., interactions or polynomial) into the model. The spread appears to be smaller the larger the fitted values. In the right panel, the plot of quantile residuals against the log number of prior dockets shows a decreasing spread as the log number of prior dockets increases. 
+
+```{r}
+p3 + p4
+```
+The plot of quantile residuals against age indicates a slight decreasing spread. In the right panel, the quantile residual by gender plot suggests the model is adequate, so does the plot of quantile residuals to judge ids.
+
+```{r}
+p5 + p6
+```
+
+```{r}
+(p7 + p8) / (p9 + p10)
+```
+
+
+```{r}
+(p11 + p12) / (p13 + p14)
+```
+
+```{r}
+(p15 + p16) / (p17 + p18)
+```
+
+In general, the plot of quantile residuals against the log number of grade offenses shows a decreasing spread as the log number of grade offenses increases. 
+
+```{r}
+plot(cooks.distance(total_m2), type = "h", las=1,
+     ylab = "Cook's distance, D")
+```
+
+```{r}
+total_m2_inf <- influence.measures(total_m2)
+colSums(total_m2_inf$is.inf)
+```
+
+
+### Dummy variable model: y = max confinement days
+
+#### Estimation
+
+Estimate $\xi$:
+```{r}
+# note: this chunk may take 1 hour to run
+max_profile_m2 <- tweedie.profile(max_confinement_days ~ log_prior_dockets +
+                                            age + gender + race + year + month + judge_id +
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac,
+                                          do.plot = TRUE, data = dockets_data)
+```
+
+```{r}
+#max_xi_est_m2 <- max_profile_m2$xi.max
+max_xi_est_m2 <- 1.412245 # result of the estimation chunk above
+max_xi_est_m2
+```
+
+```{r}
+max_m2 <- glm(max_confinement_days ~ log_prior_dockets +
+                                            age + judge_id + gender + race + year + month + 
+                                            log_M + log_M1 + log_M2 + log_M3 +
+                                            log_F + log_F1 + log_F2 + log_F3 +
+                                            log_S + log_IC +
+                                            log_H1 + log_H2 +
+                                            court_types_cp + court_types_mc + court_types_pac - 1,
+                      data = dockets_data,
+                      family = tweedie(var.power = total_xi_est_m2, link.power = 0))
+```
+
+```{r}
+summary(max_m2)
+```
+
+```{r}
+# tidy judge fixed effects
+max_m2_fe <- tidy_judge_fe(max_m2)
+head(max_m2_fe)
+```
+
+
+#### Diagnostics
+
+```{r}
+qresid1_max_m2 <- qresid(max_m2)   # Quantile resids, replication 1
+qresid2_max_m2 <- qresid(max_m2)   # Quantile resids, replication 2
+par(mfrow = c(1,2))
+qqnorm(qresid1_max_m2, main = "Quantile residuals (set 1)", las=1); qqline(qresid1_max_m2)
+qqnorm(qresid1_max_m2, main = "Quantile residuals (set 2)", las=1); qqline(qresid1_max_m2)
+```
+
+The Q-Q plots of the quantile residuals suggest that the model is reasonable.
+
+```{r}
+p1 <- data.frame(qresid = qresid1_max_m2, mu_hat = fitted(max_m2)) %>% 
+  ggplot(aes(x = mu_hat, y = qresid)) +
+  geom_point(alpha = 0.5, color = "aquamarine3", size = 2) +
+  geom_smooth(color = "aquamarine4", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  labs(x = "Fitted values",
+       y = "Quantile residuals")
+p2 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_prior_dockets,
+                              "Log(number of prior dockets)")
+p3 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$age, "Age")
+p4 <- plot_qresid_explanatory_factor(qresid1_max_m2, dockets_data$gender, "Gender")
+p5 <- plot_qresid_explanatory_factor(qresid1_max_m2, dockets_data$race, "Race") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+p6 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$judge_id, "Judge ID") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 3))
+p7 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M, "Log(number of grade M offenses)")
+p8 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M1, "Log(number of grade M1 offenses)")
+p9 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M2, "Log(number of grade M2 offenses)")
+p10 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_M3, "Log(number of grade M3 offenses)")
+p11 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F, "Log(number of grade F offenses)")
+p12 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F1, "Log(number of grade F1 offenses)")
+p13 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F2, "Log(number of grade F2 offenses)")
+p14 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_F3, "Log(number of grade F3 offenses)")
+p15 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_S, "Log(number of grade S offenses)")
+p16 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_IC, "Log(number of grade IC offenses)")
+p17 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_H1, "Log(number of grade H1 offenses)")
+p18 <- plot_qresid_explanatory(qresid1_max_m2, dockets_data$log_H2, "Log(number of grade H2 offenses)")
+```
+
+```{r}
+p1 + p2
+```
+
+Similar to the plot of `total_m2` model, the plot of quantile residuals against fitted values of `max_m2` model in the left panel above shows a pattern, suggesting that the need to build further terms (e.g., interaction or polynomial) into the model. The spread appears to be smaller the larger the fitted values. In the right panel, the plot of quantile residuals against the log number of prior dockets shows a decreasing spread as the log number of prior dockets increases. 
+
+
+```{r}
+p3 + p4
+```
+The plot of quantile residuals against age indicates a slight decreasing spread. In the right panel, the quantile residual by gender plot suggests the model is adequate, so does the plot of quantile residuals to judge ids.
+
+```{r}
+p5 + p6
+```
+
+```{r}
+(p7 + p8) / (p9 + p10)
+```
+
+
+```{r}
+(p11 + p12) / (p13 + p14)
+```
+
+```{r}
+(p15 + p16) / (p17 + p18)
+```
+
+In general, the plot of quantile residuals against the log number of grade offenses shows a decreasing spread as the log number of grade offenses increases. 
+
+```{r}
+plot(cooks.distance(max_m2), type = "h", las=1,
+     ylab = "Cook's distance, D")
+```
+
+```{r}
+max_m2_inf <- influence.measures(max_m2)
+colSums(max_m2_inf$is.inf)
+```
+
+
+## Conclusions and Next Steps
+
+Conclusions:
+
+* Using days of confinement as measures of judge harshness, results suggest that there appear to be differences in harshness among judges. 
+
+* The random effects on intercepts and judge fixed effects allow prediction of the average days of confinement by a judge, thus inferring whether one judge is harsher than another.  
+
+* The random and fixed effects were used to categorize judge harshness into low, medium, and high.
+
+* These results are preliminary as diagnostics of the regression models indicate that the models need to be further improved.
+
+
+Several next steps that should be taken include:
+
+* Examine issues noted in the *Data issues* section: repeated content of `description` and `statute_description`; issues with `sequence_number`, extreme values on the number of grade severity in a docket; issues with the birth date of some defendants; and issues with pairing of `defendant_id` and `docket_id`.
+
+* Include additional terms in the model (e.g., interactions and/ or polynomial).
+
+* Solve the outliers issues as pointed out by the diagnostics of the fitted models. 
+
+* Consider including additional explanatory variables, such as the location of the trials, attorney (e.g., public attorney, private attorney), and judge-related information.
+
+* Implement generalized linear mixed models.
+

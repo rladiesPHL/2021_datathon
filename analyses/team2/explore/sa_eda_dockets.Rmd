@@ -1,7 +1,7 @@
 ---
-title: "Random Coefficient Models"
+title: "EDA of docket level data"
 author: "Shanti Agung"
-date: "4/22/2021"
+date: "5/21/2021"
 output: html_document
 ---
 
@@ -9,13 +9,18 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This notebook is an attempt to model judge harshness using random effects model.
+This notebook is to explore docket level dataset.
 
 ```{r}
 library(patchwork)
 library(tidyverse)
 ```
 
+```{r}
+# Source the functions
+source(file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
+                 "analyses", "team2", "preprocess", "sa_functions.R"))
+```
 
 ```{r}
 # Make sure the source file (docket details data) exists
@@ -23,7 +28,6 @@ source_file <- file.path(rprojroot::find_root(rprojroot::is_rstudio_project),
                          "data", "docket_details.csv")
 stopifnot(file.exists(source_file))
 ```
-
 
 ```{r}
 # load dataset
@@ -83,50 +87,18 @@ ddcols = cols(
 dockets <- readr::read_csv(source_file, col_types = ddcols)
 ```
 
-
-## Subset data
-
-Subset data based on:
-* year: use dockets that are filed prior to 2020 (year 2010 - 2019)
-* status_name: use dockets that have status of "Closed" and "Adjudicated" (exclude: "Active" and "Inactive")
-* judge_id: use dockets that have non missing values in `judge_id` (exclude dockets that have missing values in judge names)
-
-
 ```{r}
-dockets <- dockets %>% 
-  mutate(year = lubridate::year(filing_date),
-         month = lubridate::month(filing_date, label = TRUE, abbr = TRUE)) %>% 
-  filter(year < 2020) %>% 
-  filter(status_name %in% c("Closed", "Adjudicated")) %>% 
-  filter(!is.na(judge_id)) %>% 
-  filter(!is.na(total_confinement_days))
+# Subset data for analysis
+dockets_data <- subset_dockets(dockets)
 ```
-
-Subset variables for analysis.
-```{r}
-dockets_data <- dockets[,c("docket_id", "total_confinement_days", "max_confinement_days",
-                           "gender", "age","race","number_prior_dockets", "M", "M1", "M2", "M3",
-                           "F", "F1", "F2", "F3", "S", "S1", "S2", "S3", "IC", "H1", "H2",
-                           "court_types_cp", "court_types_mc", "court_types_pac", "year", "month",
-                           "judge_id")]
-```
-
-For now, drop observations with any missing data.
-
-```{r}
-dockets_data <- na.omit(dockets_data)
-```
-
-
-### Tidy variables
 
 ```{r}
 glimpse(dockets_data)
 ```
 
-Recode `gender`, `race`, `judge_id`, `court_types_cp`, `court_types_mc`, and `court_types_pac` into factors.
 
 ```{r}
+# Create factors
 gender_levels <- c("Female", "Male")
 race_levels <- c("Asian", "Asian/Pacific Islander", "Bi-Racial", "Black",
                  "Native American/Alaskan Native", "Unknown/Unreported",
@@ -140,32 +112,35 @@ dockets_data <- dockets_data %>%
          court_types_pac = factor(court_types_pac),
          judge_id = factor(judge_id),
          year = factor(year, ordered = TRUE))
-
 ```
-
 
 ```{r}
-glimpse(dockets_data)
+# Log transform covariates
+dockets_data <- dockets_data %>% 
+  mutate(log_age = log(age),
+         log_prior_dockets = log(number_prior_dockets + 0.5),
+         log_M = log(M + 0.5),
+         log_M1 = log(M1 + 0.5),
+         log_M2 = log(M2 + 0.5),
+         log_M3 = log(M3 + 0.5),
+         log_F = log(`F` + 0.5),
+         log_F1 = log(F1 + 0.5),
+         log_F2 = log(F2 + 0.5),
+         log_F3 = log(F3 + 0.5),
+         log_S = log(S + 0.5),
+         log_S1 = log(S1 + 0.5),
+         log_S2 = log(S2 + 0.5),
+         log_S3 = log(S3 + 0.5),
+         log_IC = log(IC + 0.5),
+         log_H1 = log(H1 + 0.5),
+         log_H2 = log(H2 + 0.5)
+         )
 ```
 
 
-## EDA on the subset data
+# Descriptive
 
-### cases
-Number of closed and adjudicated cases from 2010 to 2019
-```{r}
-dockets %>% 
-  ggplot(aes(x = as.factor(year))) +
-  geom_bar(aes(fill = status_name), position = "dodge")
-```
-Very few Adjudicated cases.
-
-```{r}
-dockets %>% 
-  count(status_name)
-```
-### judges
-
+## judges
 How many judges are there?
 ```{r}
 dockets_data %>% 
@@ -198,7 +173,6 @@ dockets_data %>%
   count(num_cases) %>% 
   rename(num_judge_ids = n) %>%
   arrange(num_cases)
-  
 ```
 
 ```{r}
@@ -206,16 +180,9 @@ dockets_data %>%
   count(judge_id) %>% 
   filter(n > 15000)
 ```
-
 `judge_id` == 111 has 18017 cases
 
-```{r}
-dockets %>%
-  filter(judge_id == 111) %>% 
-  select(disposing_authority__last_name, disposing_authority__first_name, disposing_authority__middle_name)
-```
-
-### total confinement days
+## total confinement days
 
 How does the distribution of `total_confinement_days` look like?
 ```{r}
@@ -230,7 +197,8 @@ dockets_data %>%
   geom_histogram(binwidth = 500) +
   coord_cartesian(ylim = c(0,100))
 ```
-### max confinement days
+
+## max confinement days
 
 How does the distribution of `max_confinement_days` look like?
 ```{r}
@@ -239,35 +207,32 @@ dockets_data %>%
   geom_histogram(binwidth = 250)
 ```
 
-### Age
+## Age
 
 ```{r}
 summary(dockets_data$age)
 ```
 
-Some dockets have missing values for age, and the min age -1, uh-oh...
-
 ```{r}
 dockets_data %>% 
-  arrange(age)
-```
-
-Three docket_ids have defendant that are less than 3 years old. Looking at dockets' original (raw) dataset, these entries seem to be data entry typo.
-
-```{r}
-dockets_data %>%
-  filter(age > 10) %>% 
   ggplot(aes(x = age)) +
-  geom_histogram(binwidth = 4)
-```
-```{r}
-dockets_data %>%
-  filter(age > 10) %>% 
-  ggplot(aes(x = log(age))) +
   geom_histogram()
 ```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, fill = gender)) +
+  geom_histogram() +
+  facet_wrap(~gender) +
+  guides(fill = FALSE)
+```
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = age, color = gender)) +
+  geom_boxplot() +
+  guides(color = FALSE)
+```
 
-### number_prior_dockets
+## number_prior_dockets
 
 ```{r}
 summary(dockets_data$number_prior_dockets)
@@ -285,52 +250,93 @@ dockets_data %>%
   geom_histogram(binwidth = 3) +
   coord_cartesian(ylim = c(0, 2700))
 ```
-### grade offenses
+
+## court types
+
 ```{r}
-summary(dockets_data$M1)
+dockets_data %>% 
+  count(court_types_cp)
+```
+```{r}
+dockets_data %>% 
+  count(court_types_mc)
+```
+```{r}
+dockets_data %>% 
+  count(court_types_pac)
+```
+## grade severity
+
+```{r}
+histogram_severity <- function(severity){
+  dockets_data %>% 
+  ggplot(aes(x = {{severity}})) +
+  geom_histogram(fill = "lightpink2")
+}
+```
+
+```{r}
+# grade severity: M, M1, M2, M3
+(histogram_severity(log_M) + histogram_severity(log_M1)) / (histogram_severity(log_M2) +
+                                                              histogram_severity(log_M3))
+```
+
+```{r}
+(histogram_severity(log_F) + histogram_severity(log_F1)) / (histogram_severity(log_F2) +
+                                                              histogram_severity(log_F3))
+```
+
+
+```{r}
+histogram_severity(log_S) + histogram_severity(log_S1)
+```
+```{r}
+histogram_severity(log_S2) + histogram_severity(log_S3)
+```
+```{r}
+dockets_data %>% 
+  count(log_S)
 ```
 
 ```{r}
 dockets_data %>% 
-  ggplot(aes(x = M1)) +
-  geom_histogram(binwidth = 3)
+  count(log_S1)
 ```
-
-
-## Tidy variables again
-
 ```{r}
-dockets_data <- dockets_data %>% 
-  filter(age > 10) # %>%  # drop dockets with defendants' age < 10 years
-  # mutate(number_prior_dockets_scaled = scale(number_prior_dockets),
-  #        grade_M_scaled = scale(M),
-  #        grade_M1_scaled = scale(M1),
-  #        grade_M2_scaled = scale(M2),
-  #        grade_M3_scaled = scale(M3),
-  #        grade_F_scaled = scale(`F`),
-  #        grade_F1_scaled = scale(F1),
-  #        grade_F2_scaled = scale(F2),
-  #        grade_F3_scaled = scale(F3),
-  #        grade_S_scaled = scale(S),
-  #        grade_S1_scaled = scale(S1),
-  #        grade_S2_scaled = scale(S2),
-  #        grade_S3_scaled = scale(S3),
-  #        grade_IC_scaled = scale(IC),
-  #        grade_H1_scaled = scale(H1),
-  #        grade_H2_scaled = scale(H2)
-#         )
+dockets_data %>% 
+  count(log_S2)
+```
+```{r}
+dockets_data %>% 
+  count(log_S3)
 ```
 
 ```{r}
-glimpse(dockets_data)
+histogram_severity(log_IC)
 ```
 ```{r}
-dockets_data %>% count(judge_id) %>% count()
+dockets_data %>% 
+  count(log_IC)
 ```
 
-## Check response for possible transformation
 
-### total confinement days
+```{r}
+histogram_severity(log_H1) + histogram_severity(log_H2)
+```
+
+```{r}
+dockets_data %>% 
+  count(log_H1)
+```
+```{r}
+dockets_data %>% 
+  count(log_H2)
+```
+
+
+# Check response for possible transformation
+
+## total confinement days
 
 ```{r}
 p1_total <- dockets_data %>% 
@@ -352,7 +358,7 @@ p2_total <- dockets_data %>%
 p1_total + p2_total
 ```
 
-### max confinement days
+## max confinement days
 
 ```{r}
 p1_max <- dockets_data %>% 
@@ -374,11 +380,11 @@ p2_max <- dockets_data %>%
 p1_max + p2_max
 ```
 
-## Plot relationships
+# Plot relationships
 
-### confinement and age
+## confinement and age
 
-#### without transformation
+### without transformation
 
 ```{r}
 dockets_data %>% 
@@ -419,12 +425,34 @@ p1 + p2
 
 ```{r}
 dockets_data %>% 
+  ggplot(aes(x = age, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  #geom_smooth(se = FALSE, color = "darkblue") +
+  facet_wrap(~gender) +
+  labs(x = "Age", y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = age, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  #geom_smooth(se = FALSE, color = "darkblue") +
+  facet_wrap(~gender) +
+  labs(x = "Age", y = "log(max confinement days)") +
+  guides(color = FALSE)
+```
+
+
+```{r}
+dockets_data %>% 
   filter(total_confinement_days > 0) %>% 
   ggplot(aes(x = age, y = log(total_confinement_days))) +
   geom_point(alpha = 0.2) +
   geom_smooth(se = FALSE) +
   labs(title = "Scatterplots of log total confinement days \nvs. age: Confinement days larger than zero")
 ```
+
 ```{r}
 dockets_data %>% 
   filter(max_confinement_days > 0) %>% 
@@ -434,6 +462,56 @@ dockets_data %>%
   labs(title = "Scatterplots of max total confinement days \nvs. age: Confinement days larger than zero")
 ```
 
+### log(confinement) and other transformations of age
+
+```{r}
+# log(age)
+dockets_data %>% 
+  ggplot(aes(x = log(age), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(x = "log(age)", y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+
+```{r}
+# sqrt(age)
+dockets_data %>% 
+  ggplot(aes(x = sqrt(age), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+```{r}
+# 1/sqrt(age)
+dockets_data %>% 
+  ggplot(aes(x = (1/sqrt(age)), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
+
+```{r}
+# 1/age
+dockets_data %>% 
+  ggplot(aes(x = (1/(age)), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+
+```
+```{r}
+# 1/(age^2)
+dockets_data %>% 
+  ggplot(aes(x = (1/(age^2)), y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  labs(y = "log(total confinement days)") +
+  guides(color = FALSE)
+```
 
 ## confinement and gender
 
@@ -487,6 +565,17 @@ dockets_data %>%
 ```
 
 ```{r}
+dockets_data %>% 
+  ggplot(aes(x = gender, y = max_confinement_days)) +
+  geom_boxplot(aes(color = gender)) +
+  coord_flip() +
+  guides(color = FALSE) +
+  facet_wrap(~race) +
+  labs(title ="Boxplots of Max Confinement Days by Gender")
+```
+
+
+```{r}
 # create function to summarize quantitative var by group
 
 summarize_by_group <- function(a_df, grouping_var, y){ 
@@ -505,7 +594,7 @@ summarize_by_group(dockets_data, gender, max_confinement_days)
 
 Similar comments as for total confinement days applied here.
 
-### confinement and race
+## confinement and race
 
 ```{r}
 dockets_data %>% 
@@ -535,9 +624,9 @@ White, Black, and Asian/Pacific Islander appear to have larger variation in max 
 summarize_by_group(dockets_data, race, max_confinement_days)
 ```
 
-### confinement and number of prior dockets
+## confinement and number of prior dockets
 
-#### without transformation
+### without transformation
 
 ```{r}
 dockets_data %>% 
@@ -564,7 +653,7 @@ dockets_data %>%
 ```
 For defendants whose number of prior dockets are less than 50, there appear a very weak relationship between number of prior dockets and max confinement days. The spread of max confinement days are wider for smaller number of prior dockets.
 
-#### log(confinement) and number of prior dockets
+### log(confinement) and number of prior dockets
 
 ```{r}
 dockets_data %>% 
@@ -579,9 +668,75 @@ dockets_data %>%
   geom_point(alpha = 0.3) 
 ```
 
-### confinement and grade severity
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(total confinement days)")
+```
 
-#### without transformation
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = gender)) +
+  facet_wrap(~gender) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(max confinement days)")
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(total_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = race)) +
+  facet_wrap(~race) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(total confinement days)")
+```
+
+```{r}
+dockets_data %>% 
+  ggplot(aes(x = number_prior_dockets, y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.4, aes(color = race)) +
+  facet_wrap(~race) +
+  guides(color = FALSE) +
+  labs(x = "Number of prior dockets",
+       y = "log(max confinement days)")
+```
+### log(confinement) and other transformations of number of prior dockets
+```{r}
+#log(number_prior_dockets)
+dockets_data %>% 
+  ggplot(aes(x = log(number_prior_dockets + 0.5), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+```{r}
+# 1/sqrt(x)
+dockets_data %>% 
+  ggplot(aes(x = (1/sqrt(number_prior_dockets + 0.5)), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+```{r}
+# 1/x
+dockets_data %>% 
+  ggplot(aes(x = (1/(number_prior_dockets + 0.5)), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+```{r}
+# 1/x^2
+dockets_data %>% 
+  ggplot(aes(x = (1/((number_prior_dockets + 0.5)^2)), y = log(max_confinement_days + 0.5))) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") 
+```
+
+
+## confinement and grade severity
+
+### without transformation
 
 ```{r}
 dockets_data %>% 
@@ -805,7 +960,8 @@ dockets_data %>%
   geom_point(alpha = 0.3) +
   geom_smooth(method = "lm", se = FALSE)
 ```
-#### log(confinement) and grade severity
+
+### log(confinement) and grade severity
 
 ```{r}
 dockets_data %>% 
@@ -842,7 +998,7 @@ Against number of grade F1 offenses.
 plot_response_covariate <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
   a_plot <- a_df %>% 
     ggplot(aes(x = {{covariate_var}}, y = {{response_var}})) +
-    geom_point(alpha = 0.3) +
+    geom_point(alpha = 0.5, color = "darkolivegreen4") +
     labs(title = "No transformation")
   return(a_plot)
 }
@@ -851,7 +1007,7 @@ plot_logresponse_covariate <- function(a_df = dockets_data, response_var = total
   a_plot <- a_df %>% 
     ggplot(aes(x = {{covariate_var}},
                y = log({{response_var}} + 0.5))) +
-    geom_point(alpha = 0.3) +
+    geom_point(alpha = 0.5, color = "darkolivegreen4") +
     labs(title = "Log transformation")
   return(a_plot)
 }
@@ -944,7 +1100,101 @@ p2 <-  plot_logresponse_covariate(covariate_var = H2)
 p1 + p2
 ```
 
-### confinement and court types
+
+### log(confinement) and log(grade severity)
+```{r}
+plot_loglog <- function(a_df = dockets_data, response_var = total_confinement_days, covariate_var) {
+  a_plot <- a_df %>% 
+    ggplot(aes(x = log({{covariate_var}} + 0.5),
+               y = log({{response_var}} + 0.5))) +
+    geom_point(alpha = 0.5, color = "darkolivegreen4") +
+    labs(title = "Log-Log")
+  return(a_plot)
+}
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = `F`)
+p2 <- plot_loglog(covariate_var = `F`)
+p1 + p2
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = F1)
+p2 <- plot_loglog(covariate_var = F1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = F2)
+p2 <- plot_loglog(covariate_var = F2)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = F3)
+p2 <- plot_loglog(covariate_var = F3)
+p1 + p2
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M)
+p2 <- plot_loglog(covariate_var = M)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M1)
+p2 <- plot_loglog(covariate_var = M1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M2)
+p2 <- plot_loglog(covariate_var = M2)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = M3)
+p2 <- plot_loglog(covariate_var = M3)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S)
+p2 <- plot_loglog(covariate_var = S)
+p1 + p2
+```
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S1)
+p2 <- plot_loglog(covariate_var = S1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S2)
+p2 <- plot_loglog(covariate_var = S2)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = S3)
+p2 <- plot_loglog(covariate_var = S3)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = IC)
+p2 <- plot_loglog(covariate_var = IC)
+p1 + p2
+```
+
+
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = H1)
+p2 <- plot_loglog(covariate_var = H1)
+p1 + p2
+```
+```{r}
+p1 <- plot_logresponse_covariate(covariate_var = H2)
+p2 <- plot_loglog(covariate_var = H2)
+p1 + p2
+```
+
+## confinement and court types
 
 ```{r}
 dockets_data %>% 
@@ -1085,7 +1335,7 @@ dockets_data %>%
 ```
 
 
-### confinement and year
+## confinement and year
 
 ```{r}
 dockets_data %>% 
@@ -1113,7 +1363,7 @@ Probably because of the way max confinement days is constructed, the range acros
 summarize_by_group(dockets_data, year, max_confinement_days)
 ```
 
-### confinement and month
+## confinement and month
 
 ```{r}
 dockets_data %>% 
@@ -1136,219 +1386,3 @@ dockets_data %>%
 ```{r}
 summarize_by_group(dockets_data, month, max_confinement_days)
 ```
-
-## Random Effects Model: No transformation on response variables
-
-```{r}
-library(lme4)
-```
-
-### Dependent variable: Total confinement days
-
-Model specification
-*Level 1* $$\text{y}_{ij} = \beta_{0j} + \beta_{1}x_{1} + \dots + \beta_{47}x_{47} + e_{ij}$$
-
-
-*Level 2* $$\beta_{0j} = \beta_{0} + u_{0j}$$
-
-where $j  = \text{judge_id}$ and $x$s are the covariates.
-
-
-```{r}
-judge_total_intercept_model <- lmer(total_confinement_days ~ 1 + gender + race + age +
-                               number_prior_dockets + M + M1 +
-                               M2 + M3 + `F` +
-                               F1 + F2 + F3 +
-                               S + S1 + S2 +
-                               S3 + IC + H1 + H2 +
-                               court_types_cp + court_types_mc + court_types_pac +
-                               year + month +
-                               (1 | judge_id), dockets_data)
-```
-
-
-```{r}
-summary(judge_total_intercept_model)
-```
-```{r}
-ranef(judge_total_intercept_model)$judge_id
-```
-
-
-```{r}
-judge_total_ranef <- tibble(ranef(judge_total_intercept_model)$judge_id) %>%
-  rename(ranef_intercept = `(Intercept)`) %>% 
-  mutate(judge_id = row_number())
-```
-
-```{r}
-judge_total_ranef
-```
-
-
-```{r}
-judge_total_ranef %>% 
-  ggplot(aes(x = ranef_intercept)) +
-  geom_histogram(binwidth = 250, fill = "#88398A") +
-  theme_bw() +
-  labs(title = "Judge random effects on intercept",
-       subtitle = "Outcome variable: Docket total days of confinement",
-       x = "judge random effect") +
-  theme(
-    panel.grid.minor = element_blank()
-  )
-```
-
-```{r}
-summary(judge_total_ranef$ranef_intercept)
-```
-
-Order judges on harshness from high to low.
-```{r}
-judge_total_ranef %>% 
-  arrange(desc(ranef_intercept))
-```
-
-
-```{r}
-dockets %>% 
-  filter(judge_id == 20) %>% 
-  select(disposing_authority__last_name, disposing_authority__first_name,
-         disposing_authority__middle_name)
-```
-
-#### Diagnostics: Total confinement days
-
-fitted vs. residual plot
-```{r}
-plot(judge_total_intercept_model, type = c("p", "smooth"))
-```
-Residual are not scattered evenly around zero along the the ranges of fitted values.
-
-scale-location plots
-```{r}
-plot(judge_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
-```
-Assumption of homoskedascity is violated.
-
-QQ plot
-```{r}
-lattice::qqmath(judge_total_intercept_model, id = 0.05)
-```
-Residuals are not normally distributed.
-
-### Dependent variable: Max confinement days
-
-```{r}
-judge_max_intercept_model <- lmer(max_confinement_days ~ 1 + gender + race + age +
-                               number_prior_dockets + M + M1 +
-                               M2 + M3 + `F` +
-                               F1 + F2 + F3 +
-                               S + S1 + S2 +
-                               S3 + IC + H1 + H2 +
-                               court_types_cp + court_types_mc + court_types_pac +
-                               year + month +
-                               (1 | judge_id), dockets_data)
-```
-
-
-```{r}
-judge_max_ranef <- tibble(ranef(judge_max_intercept_model)$judge_id) %>%
-  rename(ranef_intercept = `(Intercept)`) %>% 
-  mutate(judge_id = row_number())
-
-```
-
-```{r}
-judge_max_ranef %>% 
-  ggplot(aes(x = ranef_intercept)) +
-  geom_histogram(binwidth = 250, fill = "#88398A") +
-  theme_bw() +
-  labs(title = "Judge random effects on intercept",
-       subtitle = "Outcome variable: Docket max days of confinement",
-       x = "judge random effect") +
-  theme(
-    panel.grid.minor = element_blank()
-  )
-```
-Order judges on harshness from high to low.
-```{r}
-judge_max_ranef %>% 
-  arrange(desc(ranef_intercept))
-```
-
-#### Diagnostics: Max confinement days
-
-fitted vs. residual plot
-```{r}
-plot(judge_max_intercept_model, type = c("p", "smooth"))
-```
-
-scale-location plots
-```{r}
-plot(judge_max_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
-```
-
-QQ plot
-```{r}
-lattice::qqmath(judge_max_intercept_model, id = 0.05)
-```
-## Random Effects Model: Log transformation on response variables
-
-### Dependent variable: Log total confinement days
-
-```{r}
-judge_log_total_intercept_model <- lmer(log(total_confinement_days + 0.5) ~ 1 + gender + race + age +
-                               number_prior_dockets + M + M1 +
-                               M2 + M3 + `F` +
-                               F1 + F2 + F3 +
-                               S + S1 + S2 +
-                               S3 + IC + H1 + H2 +
-                               court_types_cp + court_types_mc + court_types_pac +
-                               year + month +
-                               (1 | judge_id), dockets_data)
-```
-
-```{r}
-summary(judge_log_total_intercept_model)
-```
-```{r}
-ranef(judge_log_total_intercept_model)$judge_id
-```
-
-```{r}
-judge_log_total_ranef <- tibble(ranef(judge_log_total_intercept_model)$judge_id) %>%
-  rename(ranef_intercept = `(Intercept)`) %>% 
-  mutate(judge_id = row_number())
-```
-
-```{r}
-judge_log_total_ranef
-```
-
-```{r}
-judge_log_total_ranef %>% 
-  ggplot(aes(x = ranef_intercept)) +
-  geom_histogram(fill = "#88398A") +
-  theme_bw() +
-  labs(title = "Judge random effects on intercept",
-       subtitle = "Outcome variable: Log total days of confinement",
-       x = "judge random effect") +
-  theme(
-    panel.grid.minor = element_blank()
-  )
-```
-#### Diagnostics: Total confinement days
-
-```{r}
-plot(judge_log_total_intercept_model, type = c("p", "smooth"))
-```
-
-```{r}
-plot(judge_log_total_intercept_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
-```
-
-```{r}
-lattice::qqmath(judge_log_total_intercept_model, id = 0.05)
-```
-
