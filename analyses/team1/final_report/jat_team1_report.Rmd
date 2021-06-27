@@ -3,11 +3,14 @@ title: "JAT Interactive Dashboard"
 author: "R-Ladies Philly Team 1"
 date: "5/8/2021"
 output: 
+  pdf_document:
+    extra_dependencies: ["flafter"]
   html_document:
     toc: true
     toc_depth: 2
     toc_float: true
     theme: paper
+urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
@@ -43,10 +46,9 @@ The docket data from Philadelphia courts are currently inaccessible to the avera
 + Whether to consider each offense and sentence individually or at the docket level
 + Some of the tabs in the dashboard are not as fast and responsive as we would have liked
 
+\pagebreak
 
 # Methods and Results 
-
-<span style="color:gray">*Could we add methods for each team members section here??.*</span>
 
 The outcomes of our team's efforts were the following:
 
@@ -68,6 +70,7 @@ Data for the dashboard was pre-processed to a reasonable size, so all data was a
 
 The source code for the dashboard can be found on [GitHub](https://github.com/yjunechoe/2021_datathon_dashboard).
 
+\pagebreak
 ### Sentences
 
 We created three different sections to visualize sentence length. These are represented by three tabs in the "Sentences" section of the dashboard.
@@ -97,6 +100,9 @@ The third tab under the Sentences section examines how for similar offense grade
 
 ![Screenshot of sentence type by race](./img/sentence_by_race.png)
 
+
+\pagebreak
+
 ### Bail
 
 *Net Bail Amount Actions*
@@ -118,14 +124,15 @@ The “Bail” dataset was merged with datasets “Offenses and Dispositions” 
 
 Under the “Bail” tab of the dashboard, there is a category called “Bail Amount and Type” which contains three other bail categories to explore. The first category “Mean Bail Amount” shows a horizontal bar graph of the mean bail amount grouped by race and action type. Here you can select your judge of choice and depending on the year when data collection began for each judge you can select the years (in increments of 2 years) to explore the mean bail amounts over the last 20 years.
 
-In the next tab called “Bail Actions,” we explore bail action types a bit further by looking at the number of times a judge had to perform an action type by race. Additionally, we were able to further explore individual action types by race and gender but this is not a feature enabled on the dashboard yet but can be in the future. Below is an example image (Image 1.) that explores counts for bail increases and decreases by race for judge Rayford Means and the second image (Image 2.) dives deeper and looks at counts for bail increases and decreases among black defendants only. In the future this analysis can be further explored by looking at the defendant description for each time bail was increased or decreased per defendant. This would be a very helpful visualization for analyzing biases for the different offenses and defendants. 
+In the next tab called “Bail Actions,” we explore bail action types a bit further by looking at the number of times a judge had to perform an action type by race. Additionally, we were able to further explore individual action types by race and gender but this is not a feature enabled on the dashboard yet but can be in the future. Below is an example image (Example Bail Image 1.) that explores counts for bail increases and decreases by race for judge Rayford Means and the second image (Example Bail Image 2.) dives deeper and looks at counts for bail increases and decreases among black defendants only. In the future this analysis can be further explored by looking at the defendant description for each time bail was increased or decreased per defendant. This would be a very helpful visualization for analyzing biases for the different offenses and defendants. 
 
-![Image 1.](./img/bail_image1.png)
+![Example Bail Image 1.](./img/bail_image1.png)
 
-![Image 2.](./img/bail_image2.png)
+![Example Bail Image 2.](./img/bail_image2.png)
 
 The last category under “Bail Amount and Type” is “Bail by Season” which displays action type categories for a selected judge by season. These seasonal categories were created by categorizing months into their respective yearly seasons. This is helpful for visualizing any trends for action types throughout the year. This is particularly interesting to observe if holiday-filled seasons or warmer weather affect bail increases and decreases per judge. 
 
+\pagebreak
 ### Basic Judge Info
 
 We added a third section to the dashboard, which is useful for new users who may not have any familiarity with individual judges or the types of cases adjudicated in Philadelphia courts.
@@ -139,7 +146,7 @@ The "Frequent Offenses by Judge" tab allows one to select a judge and a date ran
 ![Screenshot of Frequent Offenses Tab](./img/frequent_offenses.png)
 The input data for both the above sections were modified from the source data. See the section above (Sentences by Judge and Offense) for full details. 
 
-
+\pagebreak
 # Conclusions and Next Steps 
 
 We created a dashboard that has broad functionality and serves as a proof-of-concept for how judge data could be made more broadly accessible. However, this dashboard is a work-in-progress and could benefit from additional work.

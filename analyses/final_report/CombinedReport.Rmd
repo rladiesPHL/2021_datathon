@@ -1,0 +1,50 @@
+---
+title: "R-Ladies for JAT Datathon (2021)"
+author: "R-Ladies Philadelphia"
+date: "6/25/2021"
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# About the 2021 RLadies Philly Datathon
+
+The 2021 RLadies Philly datathon aimed to connect and enable R enthusiasts in the Philadelphia region (and beyond!) to learn and collaborate while also making a difference in the broader Philadelphia community. This year, we have partnered with the Judge Accountability Table (JAT) to explore judicial patterns in Philadelphia courts and better understand trends through data.  
+
+The [Judge Accountability Table (JAT)](https://judgeaccountabilitytable.org/) is a coalition of organizations working toward a shared mission of holding judicial candidates and judges accountable to our community’s vision of justice. The organizations of the JAT include: Reclaim Philadelphia, Project SAFE, LILAC, 215 People’s Alliance, Philadelphia Community Bail Fund, Youth Art and Self-Empowerment Project, Amistad Law Project, Coalition to Abolish Death By Incarceration (CADBI), The Center for Carceral Communities, ICE out of Courts, Pennsylvania Student Power Network, Make The Road Pennsylvania, DecarceratePA, Black Lives Matter Philadelphia. For this datathon, JAT have made available a dataset of de-identified information related to public court dockets for defendants in Philadelphia County, PA. We hope that this datathon will further their efforts to:
+
+- Explore and describe this rich, messy data more completely (not only by answering specific questions, but also by discovering what additional information would be required to be able to answer these questions)
+- Understand best approaches to stratifying and analyzing data
+- Understanding predictive factors in carceral outcomes
+
+## Timeline and Workflow
+
+- **March 17, 2021, 6-8pm: [Kickoff Meetup](https://www.meetup.com/rladies-philly/events/276365040/):**  
+    - [Link to Slides](https://docs.google.com/presentation/d/1iMutdI_1nyvegZ1lKVgd4EW4TguGAUMklNsFt--L8NU/edit?usp=sharing)
+    - [Link to Recording](https://www.youtube.com/watch?v=sV4RylIrZ6w)
+
+
+- **April 28, 2021, 6-8pm: [Conclusion Meetup](https://www.meetup.com/rladies-philly/events/276365054/):**   
+    - [Link to Slides](https://docs.google.com/presentation/d/1KhyCgos30lQfxKHooV9LUQEc7N8ma5j9LtXrJiPhjbU/edit?usp=sharing)
+    - [Link to Recording](https://youtu.be/fzJhKMcKVX4)
+
+
+## Teams
+
+- **Team 1: Data Visualization**: Visualize judicial patterns at various levels of abstraction, and if possible, create an interactive dashboard.
+
+- **Team 2: Defining and quantifying judge "harshness**: Conduct research and analyze data to propose metrics and a process for quantifying how harsh a judge is, considering that judges are presented with different kinds of cases (e.g., offense severity).
+
+- **Team 3: Understanding Systemic Trends**: Examine how things have changed in the courts since [Larry Krasner](https://en.wikipedia.org/wiki/Larry_Krasner) took office in January 2018. 
+
+## Data
+
+The dataset included public court docket information between 2010-2020.
+
+## About this report
+
+This report is split into three chapters, each comprised of the final report from the three participating datathon teams.
+
