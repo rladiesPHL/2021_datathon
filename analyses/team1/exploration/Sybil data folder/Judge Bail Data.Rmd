@@ -48,7 +48,7 @@ defdoc2 <- select(defdoc, docket_id, gender, race)
 
 ```{r}
 # Select variables of interest and create new datset
-baildata2 <- select(baildata, docket_id, action_date, action_type_name, total_amount, participant_name__first_name, participant_name__last_name)
+baildata2 <- select(baildata, docket_id, action_date, action_type_name, registry_entry_code, total_amount, participant_name__first_name, participant_name__last_name)
 ```
 
 ```{r}
@@ -60,7 +60,7 @@ as_tibble(newdefdocid2)
 
 ```{r}
 # Create new dataset by merging both datasets
- jatdata1 <- merge(newdefdocid3, defdoc3, by="docket_id")
+ jatdata1 <- merge(newdefdocid2, defdoc2, by="docket_id")
 ```
 
 ```{r}
@@ -298,6 +298,8 @@ New Section-3
 #Fix the spacing for the x-axis by repositioning the legend to the bottom using theme. NOTE:Use theme to change the way plot looks. 
 
 ```{r}
+plot3JO <- completerecords  %>% 
+filter(factor(Judge) ==  "Joseph O'Neill" & year == "2009-2010") 
 
 JO6 <- ggplot(data = plot3JO, aes(x = factor(month), y = total_amount, fill = factor(race))) +
    coord_flip() +
@@ -374,10 +376,17 @@ RM10 <- ggplot(data = df4, aes(x = action_type_name, y = counts,  fill = race)) 
 
 
 ```{r}
+incdec <- df4 %>%
+filter(factor(action_type_name) %in% c("Decrease Bail Amount",  "Increase Bail Amount"))
+incdec
+```
+
+
+```{r}
 df5 <- completerecords %>% 
-  group_by(defendant_id, race, action_type_name) %>%
+  group_by(defendant_id, race, action_type_name, year) %>%
   filter(factor(Judge) ==  "Rayford Means") %>% 
-  summarise(counts = n()) %>%
+  summarise(counts = n(), .groups = "keep") %>%
   mutate(race=fct_reorder(race, counts))
 df5
 ```
@@ -390,6 +399,21 @@ RM11 <- ggplot(data = df5, aes(x = action_type_name, y = counts,  fill = race)) 
   labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Sum of all types of bail actions taken for all years judge has been in office grouped by race.", x = "Action Type", y = "Count Per Defendant ID")
 
  ggplotly(RM11 + scale_y_continuous(limits = c(0, 250)))
+```
+
+```{r}
+chk1 <- df5 %>%
+filter(factor(action_type_name) %in% c("Decrease Bail Amount",  "Increase Bail Amount"))
+chk1
+```
+
+```{r}
+RM13 <- ggplot(data = chk1, aes(x = action_type_name, y = counts,  fill = race)) +
+   coord_flip() +
+   geom_point(position= position_jitterdodge(), pch = 21) +
+  labs(title = "Judge: Rayford Means", subtitle = "Municipal Court", caption = "Decrease & Increase Bail counts grouped by Race", x = "", y = "Count Per Defendant ID")
+
+ ggplotly(RM13 + scale_y_continuous(limits = c(0, 50)))
 ```
 
 
@@ -407,15 +431,32 @@ RM12 <- ggplot(data = chk, aes(x = action_type_name, y = counts,  fill = race, t
 
  ggplotly(RM12 + scale_y_continuous(limits = c(0, 50)))
 ```
-
-```{r}
-orca(b, file = "bail.png")
+```{r label, options}
+chk1$year <- as.numeric(chk1$year)
+is.numeric(chk1$year)
 ```
 
 
-```{r}
-b <- plotly::ggplotly(RM12 + scale_y_continuous(limits = c(0, 250)))
 
-htmlwidgets::saveWidget(b, "bail.html")
+```{r label, options}
+library(gganimate)
+
+Rm13gga <- ggplot(data = chk1, aes(x = action_type_name, y = counts,  fill = race)) +
+   coord_flip() +
+   geom_point(position= position_jitterdodge(), pch = 21) +
+  labs(caption = "Decrease & Increase Bail counts grouped by Race", x = "", y = "Count Per Defendant ID") +
+
+  #gganimate code below
+ transition_time(year) +
+  scale_y_continuous(limits = c(0, 50)) +
+  labs(title = "Judge Rayford Means: Year: {frame_time}") 
+  
+#view_follow(fixed_y = TRUE)
+
+```
+
+```{r label, options}
+anim_save("bail.gif", animation = Rm13gga)
+ #anim_save(Rm13gga.gif)
 ```
 
